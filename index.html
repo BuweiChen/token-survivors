@@ -153,7 +153,9 @@
   .shopbtn.nope { animation: nope .3s; background: #c41e1e; }
   @keyframes nope { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 
-  .marquee { position: absolute; bottom: 0; left: 0; right: 0; background: #000; border-top: 3px solid #ffd84d; overflow: hidden; white-space: nowrap; padding: 6px 0; }
+  /* fixed, not absolute: the title screen scrolls on small viewports and the
+     ticker must stay glued to the bottom of the viewport */
+  .marquee { position: fixed; bottom: 0; left: 0; right: 0; z-index: 2; background: #000; border-top: 3px solid #ffd84d; overflow: hidden; white-space: nowrap; padding: 6px 0; }
   .marquee span { display: inline-block; font: 900 15px Impact, sans-serif; color: #ffd84d; animation: scrollby 28s linear infinite; }
   @keyframes scrollby { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
