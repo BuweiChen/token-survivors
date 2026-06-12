@@ -308,6 +308,16 @@ const SPR = (() => {
     '.ggg.',
   ], { g: '#0f7a3a', y: '#37e07a', d: '#0c5c2c' });
 
+  // browser cookie: rare tiny heal from normal enemies
+  const cookie = pat([
+    '.bbbb.',
+    'bbcbbb',
+    'bbbbcb',
+    'bcbbbb',
+    'bbbcbb',
+    '.bbbb.',
+  ], { b: '#d9a45c', c: '#5b3a1e' });
+
   const coffee = pat([
     '.w.w..',
     'w.w...',
@@ -534,6 +544,7 @@ const SPR = (() => {
     gems,
     coin: outlined(coin, '#eafff2', 2),
     coffee: outlined(coffee, '#fff', 2),
+    cookie: outlined(cookie, '#fff0d8', 2),
     magnet: outlined(magnet, '#fff', 2),
     bomb: outlined(bomb, '#ffd84d', 2),
     vpn: outlined(vpn, '#eaf6ff', 2),

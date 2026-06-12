@@ -105,7 +105,7 @@ const Game = (() => {
     const P = {
       might: 1 + metaBonus('might'), area: 1, cooldown: 1, projSpeed: 1, amount: 0,
       magnet: 90, luck: 1 + metaBonus('luck'), growth: 1 + metaBonus('growth'),
-      armor: 0, regen: 0, speed: 215 * (1 + metaBonus('speed')),
+      armor: 0, regen: 0, speed: 185 * (1 + metaBonus('speed')),
       maxhp: 100 + metaBonus('maxhp'), revival: metaBonus('revival'),
     };
     for (const id in p.passives) {
@@ -275,12 +275,11 @@ const Game = (() => {
       SFX.play('evolve');
       G.shake(8);
     } else {
-      // no evolution ready: a chest still levels up whatever it can
-      const nRolls = 2 + (Math.random() < (G.P.luck - 1) * 0.4 ? 1 : 0);
+      // no evolution ready: a chest grants exactly one upgrade level
       result.upgrades = [];
-      for (let i = 0; i < nRolls; i++) {
-        const pool = upgradeChoicePool();
-        if (!pool.length) { result.coins += 20; continue; }
+      const pool = upgradeChoicePool();
+      if (!pool.length) { result.coins += 20; }
+      else {
         const c = E.choice(pool);
         applyChoice(c);
         result.upgrades.push(c);
@@ -295,8 +294,9 @@ const Game = (() => {
   }
 
   // ---------- spawning ----------
-  function timeHpScale() { const m = G.time / 60; return 1 + m * 0.25 + Math.pow(m, 1.6) * 0.07; }
-  function timeDmgScale() { return 1 + (G.time / 60) * 0.06; }
+  // tuned so an unpretrained (no meta buys) run is a genuine longshot
+  function timeHpScale() { const m = G.time / 60; return 1 + m * 0.3 + Math.pow(m, 1.6) * 0.09; }
+  function timeDmgScale() { return 1 + (G.time / 60) * 0.09; }
 
   function spawnEnemy(type, x, y, elite) {
     const def = DATA.ENEMIES[type];
@@ -502,6 +502,7 @@ const Game = (() => {
       const r = Math.random();
       if (r < 0.016) dropPickup(e.x, e.y, 'coin');
       else if (r < 0.018) dropPickup(e.x, e.y, E.choice(['coffee', 'magnet', 'bomb', 'vpn']));
+      else if (r < 0.021) dropPickup(e.x, e.y, 'cookie'); // rare crumb of healing
     }
     if (e.def.splits && !e.mini) {
       for (let i = 0; i < 2; i++) spawnEnemy('slopMini', e.x + E.rand(-14, 14), e.y + E.rand(-14, 14), false);
@@ -552,7 +553,7 @@ const Game = (() => {
   function gemSprite(v) { return SPR.gems[v >= 100 ? 100 : v >= 25 ? 25 : v >= 5 ? 5 : 1]; }
 
   function dropPickup(x, y, kind) {
-    const sprMap = { chest: SPR.chest, coffee: SPR.coffee, magnet: SPR.magnet, bomb: SPR.bomb, vpn: SPR.vpn, coin: SPR.coin, modelcard: SPR.modelcard };
+    const sprMap = { chest: SPR.chest, coffee: SPR.coffee, cookie: SPR.cookie, magnet: SPR.magnet, bomb: SPR.bomb, vpn: SPR.vpn, coin: SPR.coin, modelcard: SPR.modelcard };
     G.pickups.push({ x, y, kind, spr: sprMap[kind], bob: E.rand(E.TAU) });
   }
 
@@ -561,6 +562,7 @@ const Game = (() => {
     switch (pk.kind) {
       case 'chest': openChest(); break;
       case 'coffee': p.hp = Math.min(G.P.maxhp, p.hp + 30); addText(p.x, p.y - 30, '+30 HP', '#54ff8e'); SFX.play('pickup'); break;
+      case 'cookie': p.hp = Math.min(G.P.maxhp, p.hp + 10); addText(p.x, p.y - 30, 'cookie accepted (+10 HP)', '#d9a45c'); SFX.play('pickup'); break;
       case 'magnet': for (const g of G.gems) g.vac = true; addText(p.x, p.y - 30, 'DATA HOOVERED', '#39d7ff'); SFX.play('pickup'); break;
       case 'bomb': aoe(p.x, p.y, 9999, 300 * G.P.might, { kb: 250 }); G.shake(10); addText(p.x, p.y - 30, 'sudo rm -rf ./slop', '#ff5d5d'); SFX.play('explode'); break;
       case 'vpn': p.invulnT = 5; addText(p.x, p.y - 30, 'VPN ON (untouchable)', '#aee3ff'); SFX.play('pickup'); break;

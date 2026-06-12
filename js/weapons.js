@@ -39,7 +39,7 @@ const WeaponSys = (() => {
     if (evolved) {
       w.t = cd(G, 0.13);
       const n = 1 + ((G.P.amount / 2) | 0);
-      for (let i = 0; i < n; i++) fireToken(G, w, e, E.rand(-0.22, 0.22), dmg(G, w.s.dmg + 5, w), 2 + w.s.pierce);
+      for (let i = 0; i < n; i++) fireToken(G, w, e, E.rand(-0.22, 0.22), dmg(G, w.s.dmg * 1.6 + 8, w), 2 + w.s.pierce);
     } else {
       w.t = cd(G, w.s.cd);
       const n = cnt(G, w.s.count);
@@ -64,12 +64,12 @@ const WeaponSys = (() => {
     w.t -= dt;
     if (w.t > 0) return;
     const evolved = w.evolved;
-    w.t = cd(G, evolved ? w.s.cd * 0.55 : w.s.cd);
-    const n = cnt(G, w.s.count) + (evolved ? 2 : 0);
+    w.t = cd(G, evolved ? w.s.cd * 0.45 : w.s.cd);
+    const n = cnt(G, w.s.count) + (evolved ? 3 : 0);
     const range = area(G, w.s.range);
     const targets = G.topEnemies(n, range);
     if (!targets.length) { w.t = 0.15; return; }
-    const d = dmg(G, evolved ? w.s.dmg * 1.7 : w.s.dmg, w);
+    const d = dmg(G, evolved ? w.s.dmg * 2.2 : w.s.dmg, w);
     for (const e of targets) {
       G.addBeam(G.player.x, G.player.y - 10, e.x, e.y, evolved ? '#ffd84d' : '#ff5db1', evolved ? 5 : 3);
       if (evolved) {
@@ -106,7 +106,7 @@ const WeaponSys = (() => {
     if (w.t > 0) return;
     w.t = cd(G, w.s.cd);
     const r = w.auraR;
-    const d = dmg(G, evolved ? w.s.dmg * 1.8 : w.s.dmg, w);
+    const d = dmg(G, evolved ? w.s.dmg * 2.5 : w.s.dmg, w);
     const cands = G.grid.query(G.player.x, G.player.y, r + 30);
     let hitAny = false;
     for (const e of cands) {
@@ -131,8 +131,8 @@ const WeaponSys = (() => {
         x: p.x, y: p.y - 6,
         r: area(G, w.s.radius) * (evolved ? 1.25 : 1),
         life: evolved ? w.s.life * 2.2 : w.s.life,
-        dmg: dmg(G, evolved ? w.s.dmg * 1.5 : w.s.dmg, w),
-        explode: evolved ? { r: area(G, w.s.radius) * 2.6, dmg: dmg(G, w.s.dmg * 4, w) } : null,
+        dmg: dmg(G, evolved ? w.s.dmg * 2 : w.s.dmg, w),
+        explode: evolved ? { r: area(G, w.s.radius) * 2.6, dmg: dmg(G, w.s.dmg * 6, w) } : null,
         kind: 'thought',
       });
     }
@@ -144,7 +144,7 @@ const WeaponSys = (() => {
     if (w.t > 0) return;
     w.t = cd(G, w.s.cd);
     const evolved = w.evolved;
-    const n = cnt(G, w.s.count) + (evolved ? 2 : 0);
+    const n = cnt(G, w.s.count) + (evolved ? 3 : 0);
     const e = G.nearestEnemy(G.player.x, G.player.y, 700);
     const baseA = e ? E.ang(G.player.x, G.player.y, e.x, e.y) : E.rand(E.TAU);
     const v = spd(G, w.s.speed);
@@ -152,7 +152,7 @@ const WeaponSys = (() => {
       const a = baseA + (i - (n - 1) / 2) * 0.5;
       G.fireProj({
         x: G.player.x, y: G.player.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-        dmg: dmg(G, evolved ? w.s.dmg * 1.8 : w.s.dmg, w), r: 12, pierce: 9999, life: 5,
+        dmg: dmg(G, evolved ? w.s.dmg * 2.4 : w.s.dmg, w), r: 12, pierce: 9999, life: 5,
         kind: 'boomerang', phase: 0, outT: w.s.range + (evolved ? 0.2 : 0),
         spr: SPR.doc, spin: true, seek: evolved,
         rehit: 0.4,
@@ -164,11 +164,11 @@ const WeaponSys = (() => {
   // ---- EMBEDDINGS / LLAMA ----
   H.embeddings = (G, w, dt) => {
     const evolved = w.evolved;
-    const rs = w.s.rotSpeed * (evolved ? 1.5 : 1);
+    const rs = w.s.rotSpeed * (evolved ? 1.7 : 1);
     w.angle = (w.angle + rs * dt) % E.TAU;
-    const n = cnt(G, w.s.count) + (evolved ? 3 : 0);
+    const n = cnt(G, w.s.count) + (evolved ? 4 : 0);
     const baseR = area(G, w.s.radius);
-    const d = dmg(G, evolved ? w.s.dmg * 1.7 : w.s.dmg, w);
+    const d = dmg(G, evolved ? w.s.dmg * 2.3 : w.s.dmg, w);
     if (!w.hitAt) w.hitAt = new Map();
     w.orbs = w.orbs || [];
     w.orbs.length = 0;
@@ -209,7 +209,7 @@ const WeaponSys = (() => {
           x: p.x + p.faceX * 14, y: p.y + p.faceY * 14,
           vx: Math.cos(a) * v, vy: Math.sin(a) * v,
           dmg: dmg(G, w.s.dmg, w), r: 11, pierce: 9999, life: range / v,
-          kind: 'flame', spr: SPR.flame[(Math.random() * 2) | 0], rehit: 0.3,
+          kind: 'flame', spr: SPR.flame[(Math.random() * 2) | 0], rehit: 0.45,
         });
       }
     }
@@ -217,11 +217,11 @@ const WeaponSys = (() => {
       // GROK: chaos lightning on random enemies, forever
       w.boltT = (w.boltT || 0) - dt;
       if (w.boltT <= 0) {
-        w.boltT = cd(G, 0.24);
+        w.boltT = cd(G, 0.18);
         const e = G.randomVisibleEnemy();
         if (e) {
           G.addBeam(e.x, e.y - 400, e.x, e.y, '#ffe94d', 4);
-          G.aoe(e.x, e.y, 48, dmg(G, 30, w), { kb: 80 });
+          G.aoe(e.x, e.y, 48, dmg(G, 55, w), { kb: 80 });
           G.spark(e.x, e.y, '#ffe94d', 8);
           SFX.play('hit');
         }
@@ -244,7 +244,7 @@ const WeaponSys = (() => {
       if (evolved) {
         // GEMINI: instant TPU beam from orbit
         G.addBeam(e.x, e.y - 520, e.x, e.y, '#7baaf7', 9);
-        G.aoe(e.x, e.y, area(G, w.s.radius * 1.5), dmg(G, w.s.dmg * 1.8, w), { kb: 100 });
+        G.aoe(e.x, e.y, area(G, w.s.radius * 1.8), dmg(G, w.s.dmg * 2.6, w), { kb: 100 });
         G.spark(e.x, e.y, '#7baaf7', 10);
       } else {
         G.fireProj({
@@ -301,8 +301,8 @@ const WeaponSys = (() => {
       const e = G.nearestEnemy(a.x, a.y, 9999);
       if (e) {
         const ang = E.ang(a.x, a.y, e.x, e.y);
-        a.x += Math.cos(ang) * 250 * dt;
-        a.y += Math.sin(ang) * 250 * dt;
+        a.x += Math.cos(ang) * 290 * dt;
+        a.y += Math.sin(ang) * 290 * dt;
       } else {
         a.x += (G.player.x - a.x) * dt * 2;
         a.y += (G.player.y - a.y) * dt * 2;
@@ -311,7 +311,7 @@ const WeaponSys = (() => {
       a.cd -= dt;
       if (a.cd <= 0) {
         a.cd = 0.3 * G.P.cooldown;
-        G.aoe(a.x, a.y, 46, dmg(G, a.w.s.dmg * 2.2, a.w), { kb: 60, quiet: true });
+        G.aoe(a.x, a.y, 46, dmg(G, a.w.s.dmg * 3.5, a.w), { kb: 60, quiet: true });
       }
     }
   }
@@ -329,8 +329,8 @@ const WeaponSys = (() => {
       const crit = Math.random() < w.s.critCh + (G.P.luck - 1) * 0.3;
       G.fireProj({
         x: G.player.x, y: G.player.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-        dmg: dmg(G, evolved ? w.s.dmg * 1.6 : w.s.dmg, w) * (crit ? 3 : 1), crit,
-        r: 10, pierce: evolved ? 2 : 1, life: 2.2,
+        dmg: dmg(G, evolved ? w.s.dmg * 2.2 : w.s.dmg, w) * (crit ? 3 : 1), crit,
+        r: 10, pierce: evolved ? 3 : 1, life: 2.2,
         kind: 'wobble', wobA: E.rand(E.TAU), spr: SPR.halluc,
         seek: evolved, healOnCrit: evolved,
       });

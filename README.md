@@ -66,9 +66,15 @@ First encounters: the first time you ever meet an enemy type (persisted
 across runs in localStorage) a bestiary toast slides in with its sprite,
 lore, and stats. Bosses get a full title-card slam; elites get a smaller one.
 
+Healing: regen passive, rare coffee (+30), and very rare cookies (+10) that
+normal enemies drop ("cookie accepted").
+
 Meta progression: kills drop compute credits; spend them on the title screen
 in the PRETRAINING shop (permanent ranks: parameters, H100s, epochs,
-momentum, cherry-picked evals, checkpoint backup = one revive).
+momentum, cherry-picked evals, checkpoint backup = one revive). The shop is
+not cosmetic: an unpretrained run is a genuine longshot -- winning without
+any purchases takes a lucky build. Evolutions are tuned to feel like real
+power spikes; base weapon levels are deliberately modest.
 
 ## Tech
 
