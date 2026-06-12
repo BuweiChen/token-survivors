@@ -291,11 +291,22 @@ const UI = (() => {
       const card = h('div', 'card', cardHtml(c), lvCards);
       card.style.setProperty('--rot', (E.rand(-3, 3)) + 'deg');
       card.style.animationDelay = (i * 0.07) + 's';
-      card.onclick = () => {
+      const pick = () => {
         screens.levelup.classList.add('hidden');
         const f = lvCb; lvCb = null;
         if (f) f(c);
       };
+      card.onclick = pick;
+      // build complete: offer to stop asking and grab this bonus forever
+      if (c.type === 'bonus') {
+        const auto = h('button', 'autobtn', 'ALWAYS PICK THIS (stop asking)', card);
+        auto.onclick = ev => {
+          ev.stopPropagation();
+          api.setAutoPick(c.id);
+          banner('auto-pick ON: ' + DATA.BONUS[c.id].name + ' (change it in pause menu)');
+          pick();
+        };
+      }
     });
     showScreen('levelup');
   }
@@ -346,13 +357,14 @@ const UI = (() => {
   }
 
   // ---------------- pause ----------------
-  let pauseRecipes;
+  let pauseRecipes, pauseAuto;
   function buildPause() {
     const s = h('div', 'screen modal hidden', '', root);
     screens.pause = s;
     const box = h('div', 'modalbox', '', s);
     h('div', 'modalheader', '\u23F8 PAUSED (touching grass)', box);
     pauseRecipes = h('div', 'recipes', '', box);
+    pauseAuto = h('div', 'autorow', '', box);
     const row = h('div', 'btnrow', '', box);
     const res = h('button', 'bigbtn small', 'RESUME', row);
     res.onclick = () => { screens.pause.classList.add('hidden'); api.resume(); };
@@ -378,6 +390,13 @@ const UI = (() => {
       }
     }
     pauseRecipes.innerHTML = html;
+    pauseAuto.innerHTML = '';
+    const ap = api.getAutoPick();
+    if (ap) {
+      pauseAuto.appendChild(document.createTextNode('auto-pick: ' + DATA.BONUS[ap].icon + ' ' + DATA.BONUS[ap].name + ' '));
+      const off = h('button', 'autobtn inline', 'turn off', pauseAuto);
+      off.onclick = () => { api.setAutoPick(''); showPause(); };
+    }
     showScreen('pause');
   }
   function hidePause() { screens.pause.classList.add('hidden'); }

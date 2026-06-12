@@ -10,7 +10,7 @@ const Game = (() => {
     state: 'title', // title | run | levelup | chest | pause | over | win
     time: 0, kills: 0, coins: 0, level: 1, xp: 0, xpNext: 6,
     player: null, P: null,
-    enemies: [], projs: [], gems: [], pickups: [], parts: [], texts: [], beams: [], zones: [], agents: [],
+    enemies: [], projs: [], eprojs: [], gems: [], pickups: [], parts: [], texts: [], beams: [], zones: [], agents: [],
     grid: new E.Grid(96),
     cam: { x: 0, y: 0, sx: 0, sy: 0, shake: 0 },
     frameMark: 0,
@@ -21,11 +21,22 @@ const Game = (() => {
   let spawnAcc = 0, eliteT = 28, contactT = 0, sepFrame = 0;
   let bossesSpawned = [], levelQueue = 0;
   let buffT = 0, buffName = '';
-  let bestTime = +(localStorage.getItem('ts_best') || 0);
-  let bank = +(localStorage.getItem('ts_bank') || 0);
-  let metaRanks = JSON.parse(localStorage.getItem('ts_meta') || '{}');
+  let bestTime = +(E.store.get('ts_best') || 0);
+  let bank = +(E.store.get('ts_bank') || 0);
+  let metaRanks = JSON.parse(E.store.get('ts_meta') || '{}');
   // bestiary: enemy types the player has already met, across all runs
-  let seenEnemies = JSON.parse(localStorage.getItem('ts_seen') || '{}');
+  let seenEnemies = JSON.parse(E.store.get('ts_seen') || '{}');
+  // auto-pick: bonus type to grab silently once the build is complete
+  let autoPick = E.store.get('ts_autopick') || '';
+
+  function saveBank() {
+    E.store.set('ts_bank', bank);
+    E.store.set('ts_best', bestTime);
+  }
+  // move this run's credits into the bank exactly once (death, win, quit, tab close)
+  function bankRunCoins() {
+    if (G.coins > 0) { bank += G.coins; G.coins = 0; saveBank(); }
+  }
 
   const keys = {};
   // floating touch joystick: first touch sets the origin, drag to steer
@@ -75,6 +86,7 @@ const Game = (() => {
     return {
       x: 0, y: 0, hp: 100, moving: false, faceX: 1, faceY: 0,
       anim: 0, hurtFlash: 0, invulnT: 0, revivalUsed: false,
+      slowT: 0, projGraceT: 0,
       weapons: [], passives: {},
     };
   }
@@ -111,7 +123,7 @@ const Game = (() => {
   function startRun() {
     G.state = 'run';
     G.time = 0; G.kills = 0; G.coins = 0; G.level = 1; G.xp = 0; G.xpNext = 6;
-    G.enemies.length = 0; G.projs.length = 0; G.gems.length = 0; G.pickups.length = 0;
+    G.enemies.length = 0; G.projs.length = 0; G.eprojs.length = 0; G.gems.length = 0; G.pickups.length = 0;
     G.parts.length = 0; G.texts.length = 0; G.beams.length = 0; G.zones.length = 0; G.agents.length = 0;
     G.player = newPlayer();
     spawnAcc = 0; eliteT = 28; contactT = 0; levelQueue = 0;
@@ -129,16 +141,15 @@ const Game = (() => {
     SFX.stopMusic();
     SFX.play(won ? 'win' : 'death');
     const earned = G.coins;
-    bank += earned;
     if (G.time > bestTime) bestTime = G.time;
-    localStorage.setItem('ts_bank', bank);
-    localStorage.setItem('ts_best', bestTime);
+    bankRunCoins();
     UI.showHud(false);
     const stats = { time: G.time, kills: G.kills, level: G.level, earned, won };
     if (won) UI.showWin(stats); else UI.showOver(stats);
   }
 
   function quitToTitle() {
+    bankRunCoins(); // rage quitting should not also rage quit your credits
     G.state = 'title';
     SFX.stopMusic();
     UI.hideAll(); UI.showHud(false);
@@ -211,6 +222,15 @@ const Game = (() => {
     levelQueue--;
     const choices = rollChoices();
     if (G.testMode) { applyChoice(E.choice(choices)); return; }
+    // build complete + auto-pick set: grab the chosen bonus without a modal
+    if (autoPick && choices.every(c => c.type === 'bonus')) {
+      const c = choices.find(c => c.id === autoPick) || choices[0];
+      applyChoice(c);
+      addText(G.player.x, G.player.y - 34, DATA.BONUS[c.id].icon + ' auto-picked', '#aee3ff');
+      SFX.play('pickup');
+      if (levelQueue > 0) openLevelUp();
+      return;
+    }
     G.state = 'levelup';
     SFX.play('levelup');
     UI.showLevelup(choices, c => {
@@ -218,6 +238,11 @@ const Game = (() => {
       G.state = 'run';
       if (levelQueue > 0) openLevelUp();
     });
+  }
+
+  function setAutoPick(id) {
+    autoPick = id || '';
+    E.store.set('ts_autopick', autoPick);
   }
 
   function gainXp(v) {
@@ -250,7 +275,8 @@ const Game = (() => {
       SFX.play('evolve');
       G.shake(8);
     } else {
-      const nRolls = G.P.luck > 1.3 && Math.random() < 0.3 ? 3 : Math.random() < 0.18 ? 3 : 1;
+      // no evolution ready: a chest still levels up whatever it can
+      const nRolls = 2 + (Math.random() < (G.P.luck - 1) * 0.4 ? 1 : 0);
       result.upgrades = [];
       for (let i = 0; i < nRolls; i++) {
         const pool = upgradeChoicePool();
@@ -285,11 +311,12 @@ const Game = (() => {
     e.elite = !!elite; e.boss = !!def.boss;
     e.flash = 0; e.kbx = 0; e.kby = 0; e.slowT = 0; e.wobble = E.rand(E.TAU);
     e.dashT = 0; e.spawnT = 0; e._mark = 0;
+    e.abilT = 3; e.abil2T = 8; e.telegraphT = 0; e.chargeT = 0; e.cvx = 0; e.cvy = 0; e.enraged = false;
     e.spr = SPR.enemies[def.spr];
     G.enemies.push(e);
     if (def.lore && !seenEnemies[type] && !G.testMode) {
       seenEnemies[type] = 1;
-      localStorage.setItem('ts_seen', JSON.stringify(seenEnemies));
+      E.store.set('ts_seen', JSON.stringify(seenEnemies));
       UI.bestiary(type, def);
     }
     return e;
@@ -325,7 +352,7 @@ const Game = (() => {
     // elites (minibosses)
     eliteT -= dt;
     if (eliteT <= 0) {
-      eliteT = 42;
+      eliteT = 45;
       const [x, y] = spawnPosAroundPlayer();
       const e = spawnEnemy(pickWaveType(), x, y, true);
       e.dropsChest = true;
@@ -337,8 +364,7 @@ const Game = (() => {
       if (G.time >= b.t && !bossesSpawned.includes(b.type)) {
         bossesSpawned.push(b.type);
         const [x, y] = spawnPosAroundPlayer();
-        const e = spawnEnemy(b.type, x, y, false);
-        e.dropsChest = true;
+        spawnEnemy(b.type, x, y, false);
         UI.titleCard(b.title, b.sub, 'boss');
         SFX.play('boss');
         G.shake(10);
@@ -349,7 +375,7 @@ const Game = (() => {
       if (e.type === 'clippy') {
         e.spawnT -= dt;
         if (e.spawnT <= 0) {
-          e.spawnT = 4;
+          e.spawnT = e.enraged ? 2.2 : 4;
           for (let i = 0; i < 6; i++) {
             const a = (i / 6) * E.TAU;
             spawnEnemy('clip', e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 70, false);
@@ -357,6 +383,81 @@ const Game = (() => {
         }
       }
     }
+  }
+
+  // ---------- boss abilities ----------
+  // each boss has a kit beyond walking at you: telegraphed charges, summons,
+  // projectile volleys, and an enrage. returns the boss's speed this frame.
+  function bossAbilities(e, dt, sp) {
+    const p = G.player;
+    e.abilT -= dt;
+    e.abil2T -= dt;
+    if (e.type === 'gpuBoss') {
+      // winds up (blinking, frozen), then rams at 5x speed
+      if (e.telegraphT > 0) {
+        e.telegraphT -= dt;
+        e.flash = 0.04;
+        if (e.telegraphT <= 0) {
+          const a = E.ang(e.x, e.y, p.x, p.y);
+          e.chargeT = 0.8;
+          e.cvx = Math.cos(a) * e.spd * 5;
+          e.cvy = Math.sin(a) * e.spd * 5;
+          SFX.play('elite');
+        }
+      } else if (e.abilT <= 0) {
+        e.abilT = 6;
+        e.telegraphT = 0.7;
+        addText(e.x, e.y - 64, '!!', '#ff4455', 26);
+      }
+      // summons scalper bots
+      if (e.abil2T <= 0) {
+        e.abil2T = 10;
+        for (let i = 0; i < 3; i++) spawnEnemy('scam', e.x + E.rand(-50, 50), e.y + E.rand(-50, 50), false);
+        addText(e.x, e.y - 60, 'SCALPERS DEPLOYED', '#ffd84d');
+      }
+    } else if (e.type === 'scraperBoss') {
+      // dash (existing) + radial web volley that slows the player
+      e.dashT -= dt;
+      if (e.dashT <= 0) e.dashT = 4.2;
+      if (e.dashT < 1) sp *= 2.8;
+      if (e.abilT <= 0) {
+        e.abilT = 5;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * E.TAU + G.time;
+          fireEnemyProj(e.x, e.y, Math.cos(a) * 190, Math.sin(a) * 190, 10, 'web');
+        }
+        SFX.play('shot');
+      }
+    } else if (e.type === 'clippy') {
+      if (!e.enraged && e.hp < e.maxhp * 0.35) {
+        e.enraged = true;
+        e.spd *= 1.55;
+        UI.titleCard('CLIPPY IS DONE HELPING', 'it no longer looks like you are trying to survive', 'elite');
+        SFX.play('boss');
+        G.shake(8);
+      }
+      // ring of paperclip shards
+      if (e.abilT <= 0) {
+        e.abilT = e.enraged ? 4.5 : 7;
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * E.TAU;
+          fireEnemyProj(e.x, e.y, Math.cos(a) * 230, Math.sin(a) * 230, 14, 'shard');
+        }
+        addText(e.x, e.y - 72, "it looks like you're DYING", '#cfd8ea');
+        SFX.play('shot');
+      }
+    }
+    return sp;
+  }
+
+  const eprojPool = new E.Pool(() => ({}));
+  function fireEnemyProj(x, y, vx, vy, dmg, kind) {
+    if (G.eprojs.length > 120) return;
+    const pr = eprojPool.get();
+    pr.x = x; pr.y = y; pr.vx = vx; pr.vy = vy;
+    pr.dmg = dmg * timeDmgScale(); pr.kind = kind;
+    pr.r = 10; pr.life = 3.2; pr.rot = E.rand(E.TAU);
+    G.eprojs.push(pr);
   }
 
   // ---------- combat ----------
@@ -386,20 +487,21 @@ const Game = (() => {
     G.kills++;
     spark(e.x, e.y, e.boss ? '#ffd84d' : '#8ab4ff', e.boss ? 26 : 7);
     if (Math.random() < 0.25) SFX.play('hit');
-    // drops
+    // drops: chests come from elites ONLY (about 20 a run); bosses pay out
+    // a frontier model card + credits instead
     dropGem(e.x, e.y, e.elite ? 25 : e.def.xp);
-    if (e.dropsChest) dropPickup(e.x + 20, e.y, 'chest');
     if (e.boss) {
-      G.coins += 40;
+      G.coins += 60;
       G.shake(12);
       SFX.play('explode');
-      if (Math.random() < 0.5 || e.type === 'scraperBoss') dropPickup(e.x - 24, e.y, 'modelcard');
+      dropPickup(e.x - 24, e.y, 'modelcard');
     } else if (e.elite) {
-      if (Math.random() < 0.06 + (G.P.luck - 1) * 0.2) dropPickup(e.x - 20, e.y, 'modelcard');
+      if (e.dropsChest) dropPickup(e.x + 20, e.y, 'chest');
+      if (Math.random() < 0.03 + (G.P.luck - 1) * 0.06) dropPickup(e.x - 20, e.y, 'modelcard');
     } else {
       const r = Math.random();
-      if (r < 0.035) dropPickup(e.x, e.y, 'coin');
-      else if (r < 0.0395) dropPickup(e.x, e.y, E.choice(['coffee', 'magnet', 'bomb', 'vpn']));
+      if (r < 0.016) dropPickup(e.x, e.y, 'coin');
+      else if (r < 0.018) dropPickup(e.x, e.y, E.choice(['coffee', 'magnet', 'bomb', 'vpn']));
     }
     if (e.def.splits && !e.mini) {
       for (let i = 0; i < 2; i++) spawnEnemy('slopMini', e.x + E.rand(-14, 14), e.y + E.rand(-14, 14), false);
@@ -583,13 +685,16 @@ const Game = (() => {
     if (mag > 1) { mx /= mag; my /= mag; mag = 1; }
     p.moving = mag > 0.01;
     if (p.moving) {
-      p.x += mx * G.P.speed * dt;
-      p.y += my * G.P.speed * dt;
+      const webbed = p.slowT > 0 ? 0.55 : 1; // scraper webs gum up your shoes
+      p.x += mx * G.P.speed * webbed * dt;
+      p.y += my * G.P.speed * webbed * dt;
       p.faceX = mx / mag; p.faceY = my / mag;
       p.anim += dt * 9 * Math.max(0.5, mag);
     }
     if (p.invulnT > 0) p.invulnT -= dt;
     if (p.hurtFlash > 0) p.hurtFlash -= dt;
+    if (p.slowT > 0) p.slowT -= dt;
+    if (p.projGraceT > 0) p.projGraceT -= dt;
     if (G.P.regen > 0) p.hp = Math.min(G.P.maxhp, p.hp + G.P.regen * dt);
 
     updateSpawning(dt);
@@ -634,6 +739,28 @@ const Game = (() => {
       if (dead) releaseProj(i);
     }
 
+    // enemy projectiles (webs, paperclip shards)
+    for (let i = G.eprojs.length - 1; i >= 0; i--) {
+      const pr = G.eprojs[i];
+      pr.life -= dt;
+      pr.x += pr.vx * dt; pr.y += pr.vy * dt;
+      pr.rot += dt * 4;
+      let dead = pr.life <= 0;
+      if (!dead && p.projGraceT <= 0 && p.invulnT <= 0 &&
+          E.dist2(pr.x, pr.y, p.x, p.y) < (pr.r + 13) * (pr.r + 13)) {
+        damagePlayer(pr.dmg);
+        if (pr.kind === 'web') { p.slowT = 1.6; addText(p.x, p.y - 30, 'WEBBED', '#cfd8ea'); }
+        p.projGraceT = 0.5;
+        dead = true;
+      }
+      if (dead) {
+        eprojPool.put(pr);
+        G.eprojs[i] = G.eprojs[G.eprojs.length - 1];
+        G.eprojs.pop();
+      }
+    }
+    if (G.state !== 'run') return; // a web volley can be lethal
+
     // zones (chain of thought)
     for (let i = G.zones.length - 1; i >= 0; i--) {
       const z = G.zones[i];
@@ -660,16 +787,20 @@ const Game = (() => {
       if (e.flash > 0) e.flash -= dt;
       let sp = e.spd * (e.slowT > 0 ? 0.5 : 1);
       if (e.slowT > 0) e.slowT -= dt;
-      // scraper dash
-      if (e.type === 'scraperBoss') {
-        e.dashT -= dt;
-        if (e.dashT <= 0) e.dashT = 4.5;
-        if (e.dashT < 1) sp *= 2.6;
+      if (e.boss) sp = bossAbilities(e, dt, sp);
+      if (e.chargeT > 0) {
+        // mid-charge: barrel along the locked direction
+        e.chargeT -= dt;
+        e.x += e.cvx * dt + e.kbx * dt;
+        e.y += e.cvy * dt + e.kby * dt;
+      } else if (e.telegraphT > 0) {
+        // winding up: hold still and look menacing
+      } else {
+        let a = E.ang(e.x, e.y, p.x, p.y);
+        if (e.def.wiggle) a += Math.sin(G.time * 4 + e.wobble) * 0.6;
+        e.x += Math.cos(a) * sp * dt + e.kbx * dt;
+        e.y += Math.sin(a) * sp * dt + e.kby * dt;
       }
-      let a = E.ang(e.x, e.y, p.x, p.y);
-      if (e.def.wiggle) a += Math.sin(G.time * 4 + e.wobble) * 0.6;
-      e.x += Math.cos(a) * sp * dt + e.kbx * dt;
-      e.y += Math.sin(a) * sp * dt + e.kby * dt;
       e.kbx *= Math.pow(0.002, dt); e.kby *= Math.pow(0.002, dt);
       // cheap separation, 1/3 of enemies per frame
       if (i % 3 === sepFrame && !e.boss) {
@@ -690,7 +821,7 @@ const Game = (() => {
     }
     contactT -= dt;
     if (touching > 0 && contactT <= 0) {
-      contactT = 0.45;
+      contactT = 0.25; // i-frames: short. dodge better.
       damagePlayer(touching);
       if (G.state !== 'run') return; // died
     }
@@ -947,6 +1078,16 @@ const Game = (() => {
       }
     }
 
+    // enemy projectiles
+    for (const pr of G.eprojs) {
+      const s = pr.kind === 'web' ? SPR.web : SPR.enemies.clip;
+      ctx.save();
+      ctx.translate(pr.x, pr.y);
+      ctx.rotate(pr.rot);
+      ctx.drawImage(s, -s.width / 2, -s.height / 2);
+      ctx.restore();
+    }
+
     // beams
     for (const b of G.beams) {
       const a = b.life / b.maxLife;
@@ -1078,8 +1219,8 @@ const Game = (() => {
     if (bank < cost) return false;
     bank -= cost;
     metaRanks[id] = rank + 1;
-    localStorage.setItem('ts_bank', bank);
-    localStorage.setItem('ts_meta', JSON.stringify(metaRanks));
+    E.store.set('ts_bank', bank);
+    E.store.set('ts_meta', JSON.stringify(metaRanks));
     SFX.play('coin');
     return true;
   }
@@ -1146,9 +1287,14 @@ const Game = (() => {
     window.addEventListener('resize', resize);
     initInput();
     UI.init({
-      startRun, quitToTitle, buyMeta, togglePause,
+      startRun, quitToTitle, buyMeta, togglePause, setAutoPick,
       getBank: () => bank, getBest: () => bestTime, getMeta: () => metaRanks,
+      getAutoPick: () => autoPick,
       resume: () => { G.state = 'run'; },
+    });
+    // tab closed / backgrounded mid-run: bank what was earned so far
+    window.addEventListener('pagehide', () => {
+      if (['run', 'pause', 'levelup', 'chest'].includes(G.state)) bankRunCoins();
     });
     UI.showTitle();
     requestAnimationFrame(loop);

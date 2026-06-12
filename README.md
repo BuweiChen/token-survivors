@@ -40,9 +40,19 @@ Passives: GPU Cluster (damage), VRAM (+projectiles), Quantization (cooldown),
 Scaling Laws (area), KV Cache (proj speed), Web Crawler (magnet), LoRA (XP),
 RLHF (luck), System Prompt (armor), Liquid Cooling (regen).
 
-Evolutions (frontier models) come from chests ("MODEL DROP" boxes) dropped by
-elites and bosses, once a weapon is max level and you own its paired passive.
-Check the pause screen for your evolution recipes.
+Evolutions (frontier models) come ONLY from chests ("MODEL DROP" boxes), and
+chests come ONLY from elite minibosses (one every ~45s, about 20 a run). A
+chest always evolves an eligible weapon first; otherwise it levels up what
+you have. Bosses pay out a frontier model card + credits instead. Check the
+pause screen for your evolution recipes.
+
+Bosses have real kits: GPU Shortage does a telegraphed ram and summons
+scalpers, The Scraper dashes and fires slowing web volleys, and Clippy rings
+you with paperclip shards, swarms minions, and enrages at low HP.
+
+Once your build is complete, level-ups only offer coffee/credits -- hit
+"ALWAYS PICK THIS" on a card and the game stops asking (toggle it off in the
+pause menu).
 
 Ultra-rare "model card" drops deploy a random frontier model for 10 seconds
 of double damage and faster everything.

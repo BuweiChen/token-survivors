@@ -3,7 +3,7 @@
 
 const SFX = (() => {
   let ctx = null, master = null, musicGain = null;
-  let muted = localStorage.getItem('ts_mute') === '1';
+  let muted = E.store.get('ts_mute') === '1';
   let lastShot = 0;
   let musicTimer = null, musicStep = 0;
 
@@ -94,7 +94,7 @@ const SFX = (() => {
   function play(name) { if (!ctx || muted) return; (fx[name] || (() => {}))(); }
   function toggleMute() {
     muted = !muted;
-    localStorage.setItem('ts_mute', muted ? '1' : '0');
+    E.store.set('ts_mute', muted ? '1' : '0');
     if (master) master.gain.value = muted ? 0 : 0.22;
     return muted;
   }

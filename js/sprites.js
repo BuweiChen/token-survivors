@@ -437,6 +437,17 @@ const SPR = (() => {
     '..o..o..',
   ], { o: '#e07b39', B: '#1b1e2b' });
 
+  // scraper web shot
+  const web = pat([
+    'w..w..w',
+    '.w.w.w.',
+    '..www..',
+    'wwwwwww',
+    '..www..',
+    '.w.w.w.',
+    'w..w..w',
+  ], { w: '#cfd8ea' });
+
   const lightning = pat([
     '...yy.',
     '..yy..',
@@ -531,7 +542,7 @@ const SPR = (() => {
     glowGold: glowSprite(34, 'rgba(255,216,77,0.55)'),
     glowCyan: glowSprite(24, 'rgba(120,230,255,0.45)'),
     glowPink: glowSprite(34, 'rgba(255,125,249,0.55)'),
-    doc, orb, flame: [flame0, flame1], gdOrb, halluc, turret, claudeBuddy, lightning,
+    doc, orb, flame: [flame0, flame1], gdOrb, halluc, turret, claudeBuddy, lightning, web,
     token, TOKEN_WORDS, CRIT_WORDS,
     bgTile: makeBgTile(),
   };

@@ -61,5 +61,28 @@ const E = (() => {
     }
   }
 
-  return { TAU, clamp, lerp, rand, randi, choice, dist2, ang, hashNoise, Pool, Grid };
+  // persistent storage: localStorage first, cookies as write-through backup.
+  // covers setups where localStorage is blocked/ephemeral but cookies survive.
+  const store = {
+    set(k, v) {
+      v = String(v);
+      try { localStorage.setItem(k, v); } catch (e) { /* blocked */ }
+      try {
+        document.cookie = k + '=' + encodeURIComponent(v) + ';max-age=31536000;path=/;SameSite=Lax';
+      } catch (e) { /* file:// may refuse cookies; localStorage carried it */ }
+    },
+    get(k) {
+      try {
+        const v = localStorage.getItem(k);
+        if (v !== null) return v;
+      } catch (e) { /* fall through to cookie */ }
+      try {
+        const m = document.cookie.match('(?:^|;\\s*)' + k + '=([^;]*)');
+        if (m) return decodeURIComponent(m[1]);
+      } catch (e) { /* nothing */ }
+      return null;
+    },
+  };
+
+  return { TAU, clamp, lerp, rand, randi, choice, dist2, ang, hashNoise, Pool, Grid, store };
 })();

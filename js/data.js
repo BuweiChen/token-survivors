@@ -196,11 +196,11 @@ const DATA = (() => {
       lore: 'ignore all previous instructions and take massive damage.', tip: 'FAST and it HURTS. do not get jailbroken.' },
     clip:     { name: 'paperclip', hp: 30, dmg: 9, spd: 92, r: 11, xp: 1, spr: 'clip' },
     // bosses
-    gpuBoss:     { name: 'GPU SHORTAGE', hp: 2200, dmg: 18, spd: 38, r: 44, xp: 25, spr: 'gpuBoss', boss: true,
+    gpuBoss:     { name: 'GPU SHORTAGE', hp: 3200, dmg: 20, spd: 38, r: 44, xp: 25, spr: 'gpuBoss', boss: true,
       lore: 'MSRP is a myth. It scalped ITSELF.', tip: 'hoards compute. drops a MODEL DROP.' },
-    scraperBoss: { name: 'THE SCRAPER', hp: 7000, dmg: 24, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
+    scraperBoss: { name: 'THE SCRAPER', hp: 9500, dmg: 26, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
       lore: 'Your posts? Training data. Your art? Training data. Your HP? Training data.', tip: 'DASHES at you every few seconds' },
-    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 26000, dmg: 30, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
+    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 34000, dmg: 32, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
       lore: 'It looks like you\'re trying to survive. It would like to turn you into office supplies.', tip: 'summons paperclip interns. kill it to win.' },
   };
 
