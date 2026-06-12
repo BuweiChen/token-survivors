@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TOKEN SURVIVORS - an LLM bullet heaven</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* the jank is intentional. the performance is not negotiable. */
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0d0f1a; }
+  body { font-family: "Comic Sans MS", "Comic Sans", "Chalkboard SE", cursive, sans-serif; color: #fff; }
+  canvas { display: block; image-rendering: pixelated; }
+  #ui { position: fixed; inset: 0; pointer-events: none; }
+  .hidden { display: none !important; }
+  button { pointer-events: auto; cursor: pointer; font-family: inherit; }
+
+  /* ---------- HUD ---------- */
+  .hud { position: absolute; inset: 0; }
+  .xpbar { position: absolute; top: 0; left: 0; right: 0; height: 14px; background: #0a0c14; border-bottom: 2px solid #000; }
+  .xpfill { height: 100%; width: 0%; background: linear-gradient(90deg, #2dd4ff, #54ff8e, #2dd4ff); background-size: 200% 100%; animation: xpflow 2s linear infinite; }
+  @keyframes xpflow { to { background-position: 200% 0; } }
+  .hudlevel { position: absolute; top: 18px; right: 10px; font: 900 18px Impact, sans-serif; color: #54ff8e; text-shadow: 2px 2px 0 #000; }
+  .topleft { position: absolute; top: 24px; left: 10px; }
+  .hpbar { width: 210px; height: 20px; background: #1a0808; border: 3px solid #000; border-radius: 6px; position: relative; box-shadow: 2px 2px 0 #000; }
+  .hpfill { height: 100%; width: 100%; background: linear-gradient(180deg, #ff5d5d, #c41e1e); border-radius: 2px; transition: width .15s; }
+  .hptext { position: absolute; inset: 0; text-align: center; font: 900 13px Impact, sans-serif; line-height: 16px; text-shadow: 1px 1px 0 #000; }
+  .iconrow { margin-top: 6px; max-width: 320px; display: flex; flex-wrap: wrap; gap: 3px; }
+  .wicon { position: relative; width: 34px; height: 34px; background: rgba(0,0,0,.55); border: 2px solid #444; border-radius: 6px; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+  .wicon i { position: absolute; bottom: -2px; right: 0; font: 900 10px Impact, sans-serif; font-style: normal; color: #ffd84d; text-shadow: 1px 1px 0 #000; }
+  .wicon.evo { border-color: #ffd84d; animation: evoglow 1s ease-in-out infinite alternate; }
+  @keyframes evoglow { from { box-shadow: 0 0 4px #ffd84d; } to { box-shadow: 0 0 14px #ff47b8; } }
+  .wicon.pass { border-color: #3a6ea5; }
+  .timer { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); font: 900 38px Impact, sans-serif; text-shadow: 3px 3px 0 #000, -1px -1px 0 #000; letter-spacing: 2px; }
+  .topright { position: absolute; top: 52px; right: 10px; text-align: right; }
+  .stat { font: 900 17px Impact, sans-serif; text-shadow: 2px 2px 0 #000; margin-bottom: 3px; }
+  .stat.hint { font-size: 11px; color: #8a93ad; }
+
+  .bossbox { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); width: min(480px, 70vw); text-align: center; }
+  .bossname { font: 900 16px Impact, sans-serif; color: #ff4455; text-shadow: 2px 2px 0 #000; animation: bossblink .5s steps(2) infinite; }
+  @keyframes bossblink { 50% { color: #fff; } }
+  .bossbar { height: 12px; background: #1a0505; border: 2px solid #000; border-radius: 4px; }
+  .bossfill { height: 100%; background: linear-gradient(180deg, #ff4455, #8a0a14); transition: width .2s; }
+
+  /* ---------- banner ---------- */
+  .bannerbox { position: absolute; top: 120px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+  .banner { font: 900 22px Impact, sans-serif; background: rgba(0,0,0,.75); border: 3px solid #ffd84d; border-radius: 8px; padding: 8px 18px; transform: rotate(-1.5deg); animation: bannerin .3s ease-out; text-shadow: 2px 2px 0 #000; color: #ffe994; max-width: 80vw; text-align: center; }
+  .banner.out { animation: bannerout .5s ease-in forwards; }
+  @keyframes bannerin { from { transform: rotate(8deg) scale(2.5); opacity: 0; } }
+  @keyframes bannerout { to { transform: translateY(-30px) rotate(-6deg); opacity: 0; } }
+
+  /* ---------- vignette ---------- */
+  .vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .15s;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(255,0,0,.55) 100%); }
+  .vignette.on { opacity: 1; }
+
+  /* ---------- screens ---------- */
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
+  .screen.title { background: radial-gradient(circle at 50% 30%, #1a2040, #0d0f1a 70%); overflow: hidden; }
+  .screen.modal { background: rgba(5, 6, 12, .8); }
+
+  .logo { font: 900 min(11vw, 92px)/0.95 Impact, sans-serif; text-align: center; letter-spacing: 3px;
+    background: linear-gradient(90deg, #ff004c, #ff9a00, #ffee00, #2dd4ff, #b347ff, #ff004c); background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: rainbow 3s linear infinite, logowobble 2.2s ease-in-out infinite alternate;
+    filter: drop-shadow(4px 4px 0 #000); }
+  @keyframes rainbow { to { background-position: 300% 0; } }
+  @keyframes logowobble { from { transform: rotate(-2deg) scale(1); } to { transform: rotate(2deg) scale(1.04); } }
+  .subtitle { margin-top: 8px; font-size: 15px; color: #8a93ad; transform: rotate(-1deg); }
+
+  .bigbtn { margin-top: 26px; font: 900 30px Impact, sans-serif; padding: 14px 42px; border: 4px solid #000; border-radius: 12px;
+    background: linear-gradient(180deg, #54ff8e, #1fae53); color: #03240f; box-shadow: 5px 5px 0 #000; transform: rotate(-1.2deg);
+    transition: transform .08s; letter-spacing: 1px; }
+  .bigbtn:hover { transform: rotate(1.5deg) scale(1.07); }
+  .bigbtn:active { transform: scale(.94); box-shadow: 2px 2px 0 #000; }
+  .bigbtn.small { font-size: 20px; padding: 9px 26px; margin-top: 14px; }
+  .bigbtn.gray { background: linear-gradient(180deg, #8a93ad, #555f78); color: #11141f; }
+  .bigbtn.start { animation: startpulse 1s ease-in-out infinite alternate; }
+  @keyframes startpulse { to { box-shadow: 5px 5px 0 #000, 0 0 24px #54ff8e; } }
+
+  .controls { margin-top: 14px; text-align: center; font-size: 13px; color: #aab4c8; line-height: 1.5; }
+  .best { margin-top: 10px; font-size: 12px; color: #6b7490; }
+
+  .sticker { position: absolute; font-size: 64px; filter: drop-shadow(3px 3px 0 #000) saturate(2.2); animation: stickerspin 4s ease-in-out infinite alternate; z-index: 1; pointer-events: none; }
+  .sticker.s1 { top: 8%; left: 12%; transform: rotate(-15deg); }
+  .sticker.s2 { top: 12%; right: 13%; transform: rotate(12deg); animation-delay: .6s; }
+  .sticker.s3 { bottom: 18%; left: 8%; transform: rotate(8deg); animation-delay: 1.2s; }
+  .sticker.s4 { bottom: 22%; right: 9%; transform: rotate(-10deg); animation-delay: .3s; }
+  @keyframes stickerspin { from { scale: 1; } to { scale: 1.25; rotate: 10deg; } }
+
+  /* ---------- shop ---------- */
+  .shopwrap { margin-top: 22px; background: rgba(0,0,0,.45); border: 3px dashed #3a6ea5; border-radius: 14px; padding: 12px 16px; max-width: min(880px, 94vw); transform: rotate(.5deg); }
+  .shoptitle { font: 900 18px Impact, sans-serif; color: #7baaf7; text-shadow: 2px 2px 0 #000; }
+  .bank { font: 900 15px Impact, sans-serif; color: #37e07a; margin: 4px 0 8px; }
+  .shop { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .shopitem { width: 128px; background: #141828; border: 2px solid #2c3245; border-radius: 10px; padding: 8px 6px; text-align: center; }
+  .shopitem.maxed { opacity: .55; }
+  .shopicon { font-size: 26px; }
+  .shopname { font: 900 12px Impact, sans-serif; margin-top: 2px; }
+  .shopdesc { font-size: 10px; color: #8a93ad; min-height: 26px; margin-top: 2px; }
+  .shoprank { color: #ffd84d; font-size: 10px; letter-spacing: 2px; margin: 3px 0; }
+  .shopbtn { font: 900 12px Impact, sans-serif; background: #1fae53; color: #03240f; border: 2px solid #000; border-radius: 6px; padding: 4px 10px; }
+  .shopbtn:disabled { background: #555; color: #999; }
+  .shopbtn.nope { animation: nope .3s; background: #c41e1e; }
+  @keyframes nope { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+  .marquee { position: absolute; bottom: 0; left: 0; right: 0; background: #000; border-top: 3px solid #ffd84d; overflow: hidden; white-space: nowrap; padding: 6px 0; }
+  .marquee span { display: inline-block; font: 900 15px Impact, sans-serif; color: #ffd84d; animation: scrollby 28s linear infinite; }
+  @keyframes scrollby { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* ---------- modals / cards ---------- */
+  .modalbox { background: #141828; border: 4px solid #fff; border-radius: 16px; padding: 22px 26px; text-align: center; box-shadow: 8px 8px 0 #000; max-width: min(860px, 94vw); transform: rotate(-.6deg); }
+  .modalheader { font: 900 30px Impact, sans-serif; letter-spacing: 1px; text-shadow: 3px 3px 0 #000;
+    background: linear-gradient(90deg, #ffd84d, #ff47b8, #2dd4ff); background-size: 200%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: rainbow 2.5s linear infinite; }
+  .modalheader.big { font-size: 42px; }
+  .cards { display: flex; gap: 14px; margin-top: 18px; justify-content: center; flex-wrap: wrap; }
+  .card { width: 178px; background: #1b2138; border: 3px solid #4a5680; border-radius: 12px; padding: 14px 10px; cursor: pointer;
+    transform: rotate(var(--rot, 0deg)); transition: transform .1s, border-color .1s; animation: cardin .25s ease-out backwards; pointer-events: auto; }
+  @keyframes cardin { from { transform: translateY(40px) scale(.7); opacity: 0; } }
+  .card:hover { transform: rotate(0deg) scale(1.09); border-color: #ffd84d; box-shadow: 0 0 18px rgba(255, 216, 77, .4); }
+  .cicon { font-size: 44px; filter: drop-shadow(2px 2px 0 #000); }
+  .cicon.big { font-size: 72px; }
+  .cname { font: 900 17px Impact, sans-serif; margin-top: 4px; }
+  .tag { display: inline-block; font: 900 11px Impact, sans-serif; background: #2c3245; border-radius: 4px; padding: 2px 7px; margin-top: 4px; color: #aee3ff; }
+  .tag.new { background: #c41e1e; color: #fff; animation: bossblink .6s steps(2) infinite; }
+  .cdesc { font-size: 11.5px; color: #aab4c8; margin-top: 7px; line-height: 1.45; }
+  .evohint { font-size: 10px; color: #ffd84d; margin-top: 7px; }
+
+  .chestspin { font-size: 90px; animation: chestshake .25s linear infinite, chestgrow 1.4s ease-in forwards; margin: 18px 0; }
+  @keyframes chestshake { 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
+  @keyframes chestgrow { from { scale: .6; } to { scale: 1.3; } }
+  .chestreveal { animation: cardin .3s ease-out; }
+  .evocard { background: linear-gradient(135deg, #2b2140, #143028); border: 3px solid #ffd84d; border-radius: 14px; padding: 18px 22px; margin-top: 12px; animation: evoglow 1s ease-in-out infinite alternate; }
+  .evoname { font: 900 34px Impact, sans-serif; background: linear-gradient(90deg, #ffd84d, #ff47b8, #2dd4ff, #ffd84d); background-size: 300%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: rainbow 2s linear infinite; }
+  .evotag { font: 900 13px Impact, sans-serif; color: #ffd84d; margin-top: 4px; letter-spacing: 1px; }
+  .chestlist { margin-top: 10px; }
+  .chestitem { font: 900 18px Impact, sans-serif; margin: 6px 0; text-shadow: 2px 2px 0 #000; }
+  .chestcoins { margin-top: 12px; font: 900 16px Impact, sans-serif; color: #37e07a; }
+
+  .recipes { margin-top: 14px; text-align: left; max-width: 560px; }
+  .rectitle { font: 900 14px Impact, sans-serif; color: #8a93ad; margin-bottom: 6px; }
+  .recipe { font-size: 12.5px; color: #aab4c8; padding: 3px 0; }
+  .recipe.ready { color: #ffd84d; }
+  .recipe.done { color: #54ff8e; }
+  .btnrow { display: flex; gap: 12px; justify-content: center; }
+
+  .endbox .endsub { margin-top: 10px; color: #aab4c8; font-size: 14px; max-width: 480px; }
+  .endstats { margin-top: 16px; font-size: 15px; line-height: 1.9; text-align: left; display: inline-block; }
+  .endstats b { color: #ffd84d; }
+
+  #errlog { position: fixed; left: 0; bottom: 0; font: 10px monospace; color: #333; z-index: 999; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="ui"></div>
+<div id="errlog"></div>
+<script>
+  // surface runtime errors into the DOM so headless smoke tests can see them
+  window.onerror = function (msg, src, line) {
+    var el = document.getElementById('errlog');
+    if (el) el.textContent += ' JSERR: ' + msg + ' @' + (src || '').split('/').pop() + ':' + line;
+    return false;
+  };
+</script>
+<script src="js/engine.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/data.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
