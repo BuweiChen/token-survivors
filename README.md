@@ -52,6 +52,10 @@ scammers, deepfakes (they mimic you and flicker), paywalls, prompt injectors.
 Bosses: GPU Shortage (5:00), The Scraper (10:00), and at 15:00 -- CLIPPY, the
 Paperclip Maximizer. "It looks like you're trying to survive."
 
+First encounters: the first time you ever meet an enemy type (persisted
+across runs in localStorage) a bestiary toast slides in with its sprite,
+lore, and stats. Bosses get a full title-card slam; elites get a smaller one.
+
 Meta progression: kills drop compute credits; spend them on the title screen
 in the PRETRAINING shop (permanent ranks: parameters, H100s, epochs,
 momentum, cherry-picked evals, checkpoint backup = one revive).

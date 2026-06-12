@@ -253,6 +253,35 @@ const SPR = (() => {
     '.sss.',
   ], { s: '#c4cde0' });
 
+  // outline a sprite: stamp its silhouette in 8 directions, tint, redraw on top.
+  // makes friendly drops pop against the enemy/projectile noise.
+  function outlined(spr, color, px = 2) {
+    const c = document.createElement('canvas');
+    c.width = spr.width + px * 2; c.height = spr.height + px * 2;
+    const g = c.getContext('2d');
+    for (const [dx, dy] of [[-px, 0], [px, 0], [0, -px], [0, px], [-px, -px], [px, -px], [-px, px], [px, px]])
+      g.drawImage(spr, px + dx, px + dy);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color;
+    g.fillRect(0, 0, c.width, c.height);
+    g.globalCompositeOperation = 'source-over';
+    g.drawImage(spr, px, px);
+    return c;
+  }
+
+  // soft radial glow blob, drawn additively under pickups
+  function glowSprite(r, color) {
+    const c = document.createElement('canvas');
+    c.width = c.height = r * 2;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(r, r, 2, r, r, r);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, r * 2, r * 2);
+    return c;
+  }
+
   // ---------- PICKUPS ----------
   const gemColors = { 1: '#39d7ff', 5: '#54ff8e', 25: '#d06bff', 100: '#ffd84d' };
   function gem(col) {
@@ -264,7 +293,12 @@ const SPR = (() => {
       '..g..',
     ], { g: col, W: '#ffffff' });
   }
-  const gems = { 1: gem(gemColors[1]), 5: gem(gemColors[5]), 25: gem(gemColors[25]), 100: gem(gemColors[100]) };
+  const gems = {
+    1: outlined(gem(gemColors[1]), 'rgba(255,255,255,0.9)', 1),
+    5: outlined(gem(gemColors[5]), 'rgba(255,255,255,0.9)', 1),
+    25: outlined(gem(gemColors[25]), 'rgba(255,255,255,0.9)', 1),
+    100: outlined(gem(gemColors[100]), 'rgba(255,255,255,0.95)', 2),
+  };
 
   const coin = pat([
     '.ggg.',
@@ -486,7 +520,17 @@ const SPR = (() => {
     SCALE,
     player: [player0, player1],
     enemies: { spam, markov, captcha, slop, scam, deepfake, paywall, injector, gpuBoss, scraperBoss, clippy, clip },
-    gems, coin, coffee, magnet, bomb, vpn, chest, modelcard,
+    gems,
+    coin: outlined(coin, '#eafff2', 2),
+    coffee: outlined(coffee, '#fff', 2),
+    magnet: outlined(magnet, '#fff', 2),
+    bomb: outlined(bomb, '#ffd84d', 2),
+    vpn: outlined(vpn, '#eaf6ff', 2),
+    chest: outlined(chest, '#ffd84d', 2),
+    modelcard: outlined(modelcard, '#ff7df9', 2),
+    glowGold: glowSprite(34, 'rgba(255,216,77,0.55)'),
+    glowCyan: glowSprite(24, 'rgba(120,230,255,0.45)'),
+    glowPink: glowSprite(34, 'rgba(255,125,249,0.55)'),
     doc, orb, flame: [flame0, flame1], gdOrb, halluc, turret, claudeBuddy, lightning,
     token, TOKEN_WORDS, CRIT_WORDS,
     bgTile: makeBgTile(),

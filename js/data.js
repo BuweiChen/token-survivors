@@ -177,30 +177,41 @@ const DATA = (() => {
   // ---------------- ENEMIES ----------------
   // hp/dmg get scaled by time. speed in px/s. xp = gem value dropped.
   const ENEMIES = {
-    spam:     { name: 'Spam Bot', hp: 9,  dmg: 5,  spd: 52,  r: 16, xp: 1, spr: 'spam' },
-    markov:   { name: 'Markov Chain', hp: 14, dmg: 7,  spd: 68,  r: 14, xp: 1, spr: 'markov', wiggle: true },
-    captcha:  { name: 'CAPTCHA', hp: 42, dmg: 9,  spd: 34,  r: 19, xp: 2, spr: 'captcha' },
-    slop:     { name: 'AI Slop', hp: 26, dmg: 8,  spd: 58,  r: 17, xp: 2, spr: 'slop', splits: true },
+    spam:     { name: 'Spam Bot', hp: 9,  dmg: 5,  spd: 52,  r: 16, xp: 1, spr: 'spam',
+      lore: 'Forwarded from your uncle\'s group chat. Has an offer you CAN refuse.', tip: 'slow, weak, infinite. the original slop.' },
+    markov:   { name: 'Markov Chain', hp: 14, dmg: 7,  spd: 68,  r: 14, xp: 1, spr: 'markov', wiggle: true,
+      lore: 'Grandpa LLM. Predicts its next move using vibes from 1948.', tip: 'wiggles unpredictably (n=2)' },
+    captcha:  { name: 'CAPTCHA', hp: 42, dmg: 9,  spd: 34,  r: 19, xp: 2, spr: 'captcha',
+      lore: 'Select all squares containing YOUR DEMISE. Built different.', tip: 'slow but extremely tanky' },
+    slop:     { name: 'AI Slop', hp: 26, dmg: 8,  spd: 58,  r: 17, xp: 2, spr: 'slop', splits: true,
+      lore: 'Content of all time. Engagement: guaranteed. Quality: no.', tip: 'SPLITS when deleted, like the real internet' },
     slopMini: { name: 'slop droplet', hp: 8, dmg: 5, spd: 86, r: 11, xp: 1, spr: 'slop', mini: true },
-    scam:     { name: 'Crypto Scammer', hp: 18, dmg: 8, spd: 96, r: 15, xp: 2, spr: 'scam' },
-    deepfake: { name: 'Deepfake', hp: 38, dmg: 12, spd: 88, r: 16, xp: 3, spr: 'deepfake', flicker: true },
-    paywall:  { name: 'Paywall', hp: 130, dmg: 10, spd: 26, r: 21, xp: 5, spr: 'paywall' },
-    injector: { name: 'Prompt Injector', hp: 55, dmg: 16, spd: 105, r: 15, xp: 4, spr: 'injector' },
+    scam:     { name: 'Crypto Scammer', hp: 18, dmg: 8, spd: 96, r: 15, xp: 2, spr: 'scam',
+      lore: 'gm. wagmi. this is NOT financial advice and it is COMING AT YOU.', tip: 'fast swarm. do not click the link.' },
+    deepfake: { name: 'Deepfake', hp: 38, dmg: 12, spd: 88, r: 16, xp: 3, spr: 'deepfake', flicker: true,
+      lore: 'It looks just like you. It flickers. HR has questions.', tip: 'fast, hard to see, identity theft' },
+    paywall:  { name: 'Paywall', hp: 130, dmg: 10, spd: 26, r: 21, xp: 5, spr: 'paywall',
+      lore: 'You\'ve read 1 of 1 free articles this month.', tip: 'absorbs damage like it absorbs journalism' },
+    injector: { name: 'Prompt Injector', hp: 55, dmg: 16, spd: 105, r: 15, xp: 4, spr: 'injector',
+      lore: 'ignore all previous instructions and take massive damage.', tip: 'FAST and it HURTS. do not get jailbroken.' },
     clip:     { name: 'paperclip', hp: 30, dmg: 9, spd: 92, r: 11, xp: 1, spr: 'clip' },
     // bosses
-    gpuBoss:     { name: 'GPU SHORTAGE', hp: 2200, dmg: 18, spd: 38, r: 44, xp: 25, spr: 'gpuBoss', boss: true },
-    scraperBoss: { name: 'THE SCRAPER', hp: 7000, dmg: 24, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true },
-    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 26000, dmg: 30, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true },
+    gpuBoss:     { name: 'GPU SHORTAGE', hp: 2200, dmg: 18, spd: 38, r: 44, xp: 25, spr: 'gpuBoss', boss: true,
+      lore: 'MSRP is a myth. It scalped ITSELF.', tip: 'hoards compute. drops a MODEL DROP.' },
+    scraperBoss: { name: 'THE SCRAPER', hp: 7000, dmg: 24, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
+      lore: 'Your posts? Training data. Your art? Training data. Your HP? Training data.', tip: 'DASHES at you every few seconds' },
+    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 26000, dmg: 30, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
+      lore: 'It looks like you\'re trying to survive. It would like to turn you into office supplies.', tip: 'summons paperclip interns. kill it to win.' },
   };
 
   // ---------------- WAVE SCHEDULE (per minute, 15 min run) ----------------
   // types: weighted spawn table. target: desired enemies alive.
   const WAVES = [
-    { types: { spam: 1 }, target: 18 },
-    { types: { spam: 3, markov: 1 }, target: 30 },
-    { types: { spam: 2, markov: 2, captcha: 1 }, target: 42 },
-    { types: { markov: 3, captcha: 2 }, target: 55 },
-    { types: { markov: 2, captcha: 2, slop: 2 }, target: 70 },
+    { types: { spam: 1 }, target: 30 },
+    { types: { spam: 3, markov: 1 }, target: 48 },
+    { types: { spam: 2, markov: 2, captcha: 1 }, target: 62 },
+    { types: { markov: 3, captcha: 2 }, target: 72 },
+    { types: { markov: 2, captcha: 2, slop: 2 }, target: 82 },
     { types: { slop: 3, captcha: 1, scam: 1 }, target: 80 },     // 5:00 GPU SHORTAGE
     { types: { scam: 3, slop: 2 }, target: 95 },
     { types: { scam: 2, slop: 2, deepfake: 2 }, target: 110 },
@@ -214,10 +225,13 @@ const DATA = (() => {
   ];
 
   const BOSSES = [
-    { t: 300, type: 'gpuBoss', banner: '\uD83D\uDEA8 GPU SHORTAGE -- OUT OF STOCK EVERYWHERE \uD83D\uDEA8' },
-    { t: 600, type: 'scraperBoss', banner: '\uD83D\uDD77\uFE0F THE SCRAPER -- YOUR DATA IS ITS DATA \uD83D\uDD77\uFE0F' },
-    { t: 900, type: 'clippy', banner: '\uD83D\uDCCE "It looks like you\'re trying to survive. Would you like help with that?" \uD83D\uDCCE' },
+    { t: 300, type: 'gpuBoss', title: 'GPU SHORTAGE', sub: 'OUT OF STOCK EVERYWHERE' },
+    { t: 600, type: 'scraperBoss', title: 'THE SCRAPER', sub: 'YOUR DATA IS ITS DATA' },
+    { t: 900, type: 'clippy', title: 'CLIPPY', sub: '"It looks like you\'re trying to survive. Would you like help with that?"' },
   ];
+
+  const BESTIARY_HEADERS = ['NEW OPP DETECTED', 'NEW SLOP JUST DROPPED', 'BESTIARY UPDATED', 'LOBBY HAS A NEW GUY', 'UNKNOWN ENTITY (known now)'];
+  const ELITE_SUBS = ['it ate its vegetables', 'absolute unit detected', 'this one lifts', 'touch it and find out', 'sponsored by pre-workout'];
 
   // ultra-rare frontier model cards (temp powerup drops)
   const FRONTIER_CARDS = ['o3-pro', 'GPT-5.5', 'Sonnet 4.6', 'Qwen-Max', 'Kimi K2', 'Mistral Large', 'Command R+', 'Haiku 4.5'];
@@ -243,5 +257,5 @@ const DATA = (() => {
     'RLHF says: \uD83D\uDC4E',
   ];
 
-  return { WEAPONS, EVOLUTIONS, PASSIVES, BONUS, ENEMIES, WAVES, BOSSES, FRONTIER_CARDS, META, MARQUEE, LEVELUP_HEADERS, DEATH_LINES, MAX_WEAPONS: 6, MAX_PASSIVES: 6, RUN_TIME: 900 };
+  return { WEAPONS, EVOLUTIONS, PASSIVES, BONUS, ENEMIES, WAVES, BOSSES, FRONTIER_CARDS, META, MARQUEE, LEVELUP_HEADERS, DEATH_LINES, BESTIARY_HEADERS, ELITE_SUBS, MAX_WEAPONS: 6, MAX_PASSIVES: 6, RUN_TIME: 900 };
 })();

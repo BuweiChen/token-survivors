@@ -18,12 +18,14 @@ const Game = (() => {
   };
 
   let enemyId = 1;
-  let spawnAcc = 0, eliteT = 40, contactT = 0, sepFrame = 0;
+  let spawnAcc = 0, eliteT = 28, contactT = 0, sepFrame = 0;
   let bossesSpawned = [], levelQueue = 0;
   let buffT = 0, buffName = '';
   let bestTime = +(localStorage.getItem('ts_best') || 0);
   let bank = +(localStorage.getItem('ts_bank') || 0);
   let metaRanks = JSON.parse(localStorage.getItem('ts_meta') || '{}');
+  // bestiary: enemy types the player has already met, across all runs
+  let seenEnemies = JSON.parse(localStorage.getItem('ts_seen') || '{}');
 
   const keys = {};
   // floating touch joystick: first touch sets the origin, drag to steer
@@ -112,7 +114,7 @@ const Game = (() => {
     G.enemies.length = 0; G.projs.length = 0; G.gems.length = 0; G.pickups.length = 0;
     G.parts.length = 0; G.texts.length = 0; G.beams.length = 0; G.zones.length = 0; G.agents.length = 0;
     G.player = newPlayer();
-    spawnAcc = 0; eliteT = 40; contactT = 0; levelQueue = 0;
+    spawnAcc = 0; eliteT = 28; contactT = 0; levelQueue = 0;
     bossesSpawned = []; buffT = 0;
     recomputeStats();
     G.player.hp = G.P.maxhp;
@@ -285,6 +287,11 @@ const Game = (() => {
     e.dashT = 0; e.spawnT = 0; e._mark = 0;
     e.spr = SPR.enemies[def.spr];
     G.enemies.push(e);
+    if (def.lore && !seenEnemies[type] && !G.testMode) {
+      seenEnemies[type] = 1;
+      localStorage.setItem('ts_seen', JSON.stringify(seenEnemies));
+      UI.bestiary(type, def);
+    }
     return e;
   }
 
@@ -315,14 +322,15 @@ const Game = (() => {
         spawnEnemy(pickWaveType(), x, y, false);
       }
     }
-    // elites
+    // elites (minibosses)
     eliteT -= dt;
     if (eliteT <= 0) {
       eliteT = 42;
       const [x, y] = spawnPosAroundPlayer();
       const e = spawnEnemy(pickWaveType(), x, y, true);
       e.dropsChest = true;
-      UI.banner('an ELITE ' + e.def.name.toUpperCase() + ' has logged on');
+      UI.titleCard('ELITE ' + e.def.name.toUpperCase(), E.choice(DATA.ELITE_SUBS), 'elite');
+      SFX.play('elite');
     }
     // bosses
     for (const b of DATA.BOSSES) {
@@ -331,7 +339,7 @@ const Game = (() => {
         const [x, y] = spawnPosAroundPlayer();
         const e = spawnEnemy(b.type, x, y, false);
         e.dropsChest = true;
-        UI.banner(b.banner);
+        UI.titleCard(b.title, b.sub, 'boss');
         SFX.play('boss');
         G.shake(10);
       }
@@ -802,8 +810,24 @@ const Game = (() => {
     }
     ctx.globalAlpha = 1;
 
-    // gems + pickups
-    for (const g of G.gems) ctx.drawImage(g.spr, g.x - g.spr.width / 2, g.y - g.spr.height / 2);
+    // gems (outlined sprites, gentle pulse so loot reads as loot)
+    for (const g of G.gems) {
+      const pu = 1 + Math.sin(G.time * 6 + g.x * 0.1) * 0.12;
+      const gw = g.spr.width * pu, gh = g.spr.height * pu;
+      ctx.drawImage(g.spr, g.x - gw / 2, g.y - gh / 2, gw, gh);
+    }
+    // pickups: additive glow halo + outlined sprite
+    if (G.pickups.length) {
+      ctx.globalCompositeOperation = 'lighter';
+      for (const pk of G.pickups) {
+        const glow = pk.kind === 'modelcard' ? SPR.glowPink : (pk.kind === 'chest' ? SPR.glowGold : SPR.glowCyan);
+        const ga = 0.55 + Math.sin(G.time * 5 + pk.bob) * 0.3;
+        ctx.globalAlpha = ga;
+        ctx.drawImage(glow, pk.x - glow.width / 2, pk.y - glow.height / 2);
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
     for (const pk of G.pickups) {
       const bob = Math.sin(G.time * 4 + pk.bob) * 4;
       const s = pk.spr;

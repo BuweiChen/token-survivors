@@ -58,6 +58,43 @@
   @keyframes bannerin { from { transform: rotate(8deg) scale(2.5); opacity: 0; } }
   @keyframes bannerout { to { transform: translateY(-30px) rotate(-6deg); opacity: 0; } }
 
+  /* ---------- boss / elite title cards ---------- */
+  .tcardbox { position: absolute; inset: 0; pointer-events: none; z-index: 7; }
+  .tcard { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .tcard.out { opacity: 0; transition: opacity .4s; }
+  .tcard.boss .ttitle { font: 900 min(14vw, 96px) Impact, sans-serif; letter-spacing: 4px; text-align: center;
+    color: #ff3344; -webkit-text-stroke: 3px #000; text-shadow: 0 0 30px rgba(255,40,60,.9), 6px 6px 0 #000;
+    animation: bossslam .45s cubic-bezier(.2, 2.2, .5, 1) backwards; }
+  .tcard.boss .tsub { font: 900 min(4vw, 22px) Impact, sans-serif; color: #ffe994; text-shadow: 2px 2px 0 #000;
+    margin-top: 10px; max-width: 84vw; text-align: center; animation: subin .4s .25s ease-out backwards; }
+  @keyframes bossslam { from { transform: scale(3.2) rotate(-4deg); opacity: 0; } }
+  @keyframes subin { from { transform: translateY(24px); opacity: 0; } }
+  .tbar { position: absolute; left: 0; right: 0; height: 11vh; background: rgba(0,0,0,.82); border: 0 solid #ff3344; }
+  .tbar.top { top: 0; border-bottom-width: 3px; animation: barin .3s ease-out backwards; }
+  .tbar.bot { bottom: 0; border-top-width: 3px; animation: barin .3s ease-out backwards; }
+  @keyframes barin { from { transform: scaleY(0); } }
+  .tcard.elite { justify-content: flex-start; padding-top: 24vh; }
+  .tcard.elite .ttitle { font: 900 min(7vw, 34px) Impact, sans-serif; color: #ffd84d; -webkit-text-stroke: 1.5px #000;
+    text-shadow: 3px 3px 0 #000; transform: rotate(-2deg); animation: eliteslide .3s cubic-bezier(.2, 1.8, .5, 1) backwards; }
+  .tcard.elite .tsub { font: 700 13px "Comic Sans MS", cursive; color: #ffe994; text-shadow: 1px 1px 0 #000;
+    animation: subin .3s .15s ease-out backwards; }
+  @keyframes eliteslide { from { transform: translateX(50vw) rotate(8deg); opacity: 0; } }
+
+  /* ---------- bestiary toast ---------- */
+  .bestiarybox { position: absolute; left: 10px; bottom: 14px; z-index: 7; pointer-events: none; }
+  .besttoast { width: min(310px, 80vw); background: rgba(10, 12, 24, .92); border: 3px solid #b347ff; border-radius: 12px;
+    padding: 8px 10px; box-shadow: 4px 4px 0 #000, 0 0 18px rgba(179, 71, 255, .35); transform: rotate(-1deg);
+    animation: bestin .35s cubic-bezier(.2, 1.6, .4, 1) backwards; }
+  .besttoast.out { transition: transform .4s, opacity .4s; transform: translateX(-120%) rotate(-6deg); opacity: 0; }
+  @keyframes bestin { from { transform: translateX(-120%) rotate(-6deg); } }
+  .bhead { font: 900 13px Impact, sans-serif; color: #d08bff; letter-spacing: 1px; animation: bossblink .7s steps(2) infinite; }
+  .brow { display: flex; gap: 10px; margin-top: 6px; align-items: flex-start; }
+  .bspr { image-rendering: pixelated; flex-shrink: 0; max-width: 64px; max-height: 64px; filter: drop-shadow(2px 2px 0 #000); }
+  .bname { font: 900 16px Impact, sans-serif; color: #fff; }
+  .blore { font-size: 11px; color: #cdd6ea; line-height: 1.35; margin-top: 2px; }
+  .bstats { font: 900 10px monospace; color: #ffd84d; margin-top: 4px; letter-spacing: 1px; }
+  .btip { font-size: 10px; color: #54ff8e; margin-top: 2px; }
+
   /* ---------- vignette ---------- */
   .vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .15s;
     background: radial-gradient(ellipse at center, transparent 55%, rgba(255,0,0,.55) 100%); }

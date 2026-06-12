@@ -59,6 +59,8 @@ const SFX = (() => {
     chest() { [392, 523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.14, 'triangle', 0.3, 0, i * 0.08)); },
     evolve() { [262, 330, 392, 523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.2, 'sawtooth', 0.18, 0, i * 0.06)); noise(0.5, 0.12, 800); },
     boss() { tone(110, 0.5, 'sawtooth', 0.4, -30); tone(116, 0.5, 'sawtooth', 0.4, -30); },
+    elite() { tone(220, 0.18, 'sawtooth', 0.25, -40); tone(233, 0.18, 'sawtooth', 0.25, -40, 0.12); },
+    bestiary() { tone(660, 0.08, 'square', 0.18); tone(880, 0.1, 'square', 0.18, 0, 0.08); },
     explode() { noise(0.35, 0.4, 700); tone(80, 0.3, 'sine', 0.5, -40); },
     death() { tone(440, 0.9, 'sawtooth', 0.4, -400); noise(0.6, 0.3, 400); },
     win() { [523, 659, 784, 1047, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.22, 'square', 0.25, 0, i * 0.13)); },

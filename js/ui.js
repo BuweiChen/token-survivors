@@ -6,7 +6,7 @@ const UI = (() => {
   let api = null;
   let root, hud, screens = {};
   let hpFill, hpText, xpFill, timerEl, killsEl, coinsEl, levelEl, iconRow, bannerBox, bossBox, bossFill, bossName, vign;
-  let joyBase, joyKnob, muteBtn;
+  let joyBase, joyKnob, muteBtn, tcardBox, bestiaryBox;
   const IS_TOUCH = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
   let iconsDirty = true;
   let lastHp = -1, lastXp = -1, lastTime = -1, lastKills = -1, lastCoins = -1, lastLevel = -1;
@@ -34,6 +34,8 @@ const UI = (() => {
     bannerBox = h('div', 'bannerbox', '', root);
     joyBase = h('div', 'joybase hidden', '', root);
     joyKnob = h('div', 'joyknob hidden', '', root);
+    tcardBox = h('div', 'tcardbox', '', root);
+    bestiaryBox = h('div', 'bestiarybox', '', root);
 
     buildHud();
     buildTitle();
@@ -140,6 +142,50 @@ const UI = (() => {
     const el = h('div', 'banner', bannerQueue.shift(), bannerBox);
     setTimeout(() => { el.classList.add('out'); }, 2600);
     setTimeout(() => { el.remove(); bannerBusy = false; pumpBanner(); }, 3100);
+  }
+
+  // ---------------- title cards (bosses slam, elites slide) ----------------
+  function titleCard(title, sub, kind) {
+    const card = h('div', 'tcard ' + kind, '', tcardBox);
+    if (kind === 'boss') {
+      h('div', 'tbar top', '', card);
+      h('div', 'tbar bot', '', card);
+    }
+    h('div', 'ttitle', title, card);
+    if (sub) h('div', 'tsub', sub, card);
+    const life = kind === 'boss' ? 3000 : 1800;
+    setTimeout(() => card.classList.add('out'), life - 400);
+    setTimeout(() => card.remove(), life);
+  }
+
+  // ---------------- bestiary (first encounter, ever) ----------------
+  const bestQueue = [];
+  let bestBusy = false;
+  function bestiary(type, def) {
+    bestQueue.push(def);
+    pumpBestiary();
+  }
+  function pumpBestiary() {
+    if (bestBusy || !bestQueue.length) return;
+    bestBusy = true;
+    const def = bestQueue.shift();
+    const toast = h('div', 'besttoast', '', bestiaryBox);
+    h('div', 'bhead', E.choice(DATA.BESTIARY_HEADERS), toast);
+    const row = h('div', 'brow', '', toast);
+    const spr = SPR.enemies[def.spr];
+    const c = document.createElement('canvas');
+    c.width = spr.width; c.height = spr.height;
+    c.getContext('2d').drawImage(spr, 0, 0);
+    c.className = 'bspr';
+    row.appendChild(c);
+    const info = h('div', 'binfo', '', row);
+    h('div', 'bname', def.name, info);
+    h('div', 'blore', def.lore, info);
+    h('div', 'bstats', 'HP ' + def.hp + ' / SPD ' + def.spd + ' / DMG ' + def.dmg, info);
+    if (def.tip) h('div', 'btip', '>> ' + def.tip, info);
+    SFX.play('bestiary');
+    setTimeout(() => toast.classList.add('out'), 5600);
+    setTimeout(() => { toast.remove(); bestBusy = false; pumpBestiary(); }, 6000);
   }
 
   // ---------------- screens ----------------
@@ -383,6 +429,6 @@ const UI = (() => {
   return {
     init, showTitle, hideAll, showHud, updateHud, dirtyIcons,
     showLevelup, showChest, showPause, hidePause, showOver, showWin,
-    banner, bossBar, vignette, joystick, syncMuteBtn,
+    banner, bossBar, vignette, joystick, syncMuteBtn, titleCard, bestiary,
   };
 })();
