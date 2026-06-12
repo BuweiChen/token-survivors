@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <title>TOKEN SURVIVORS - an LLM bullet heaven</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
   /* the jank is intentional. the performance is not negotiable. */
-  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #0d0f1a; }
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0d0f1a; overscroll-behavior: none; }
   body { font-family: "Comic Sans MS", "Comic Sans", "Chalkboard SE", cursive, sans-serif; color: #fff; }
-  canvas { display: block; image-rendering: pixelated; }
+  canvas { display: block; image-rendering: pixelated; touch-action: none; }
   #ui { position: fixed; inset: 0; pointer-events: none; }
   .hidden { display: none !important; }
   button { pointer-events: auto; cursor: pointer; font-family: inherit; }
@@ -34,6 +34,16 @@
   .topright { position: absolute; top: 52px; right: 10px; text-align: right; }
   .stat { font: 900 17px Impact, sans-serif; text-shadow: 2px 2px 0 #000; margin-bottom: 3px; }
   .stat.hint { font-size: 11px; color: #8a93ad; }
+  .hudbtns { display: flex; gap: 6px; justify-content: flex-end; margin-top: 4px; }
+  .hudbtn { width: 40px; height: 40px; font-size: 19px; background: rgba(0,0,0,.55); border: 2px solid #444; border-radius: 8px; color: #fff; }
+  .hudbtn:active { transform: scale(.9); border-color: #ffd84d; }
+
+  /* ---------- touch joystick ---------- */
+  .joybase { position: fixed; top: 0; left: 0; width: 110px; height: 110px; border-radius: 50%;
+    border: 3px dashed rgba(170,190,230,.5); background: rgba(20,24,40,.25); pointer-events: none; z-index: 5; }
+  .joyknob { position: fixed; top: 0; left: 0; width: 48px; height: 48px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #8a93ad, #3d4458); border: 3px solid #1b1e2b;
+    box-shadow: 2px 3px 0 rgba(0,0,0,.5); pointer-events: none; z-index: 6; }
 
   .bossbox { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); width: min(480px, 70vw); text-align: center; }
   .bossname { font: 900 16px Impact, sans-serif; color: #ff4455; text-shadow: 2px 2px 0 #000; animation: bossblink .5s steps(2) infinite; }
@@ -55,8 +65,11 @@
 
   /* ---------- screens ---------- */
   .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
-  .screen.title { background: radial-gradient(circle at 50% 30%, #1a2040, #0d0f1a 70%); overflow: hidden; }
+  .screen.title { background: radial-gradient(circle at 50% 30%, #1a2040, #0d0f1a 70%); overflow: hidden auto; touch-action: pan-y; justify-content: flex-start; }
   .screen.modal { background: rgba(5, 6, 12, .8); }
+  /* auto margins center when content fits, but keep the top reachable when it scrolls */
+  .logo { margin-top: auto; }
+  .best { margin-bottom: auto; padding-bottom: 46px; }
 
   .logo { font: 900 min(11vw, 92px)/0.95 Impact, sans-serif; text-align: center; letter-spacing: 3px;
     background: linear-gradient(90deg, #ff004c, #ff9a00, #ffee00, #2dd4ff, #b347ff, #ff004c); background-size: 300% 100%;
@@ -148,6 +161,39 @@
   .endstats b { color: #ffd84d; }
 
   #errlog { position: fixed; left: 0; bottom: 0; font: 10px monospace; color: #333; z-index: 999; pointer-events: none; }
+
+  /* ---------- modals scroll instead of clipping on short screens ---------- */
+  .modalbox { max-height: 92vh; overflow-y: auto; touch-action: pan-y; }
+
+  /* ---------- small screens ---------- */
+  @media (max-width: 700px), (max-height: 500px) {
+    .timer { font-size: 26px; top: 18px; }
+    .hpbar { width: 150px; height: 16px; }
+    .hptext { font-size: 11px; line-height: 13px; }
+    .iconrow { max-width: 210px; }
+    .wicon { width: 28px; height: 28px; font-size: 14px; }
+    .topright { top: 42px; }
+    .stat { font-size: 14px; }
+    .bossbox { top: 112px; width: 70vw; }
+    .bannerbox { top: 152px; }
+    .banner { font-size: 15px; padding: 6px 12px; }
+    .sticker { font-size: 36px; }
+    .logo { letter-spacing: 1px; }
+    .bigbtn { font-size: 22px; padding: 11px 28px; }
+    .shopwrap { padding: 8px 8px; }
+    .shopitem { width: 104px; }
+    .modalbox { padding: 14px 10px; }
+    .modalheader { font-size: 22px; }
+    .modalheader.big { font-size: 30px; }
+    .cards { gap: 8px; }
+    .card { width: 44%; min-width: 136px; padding: 10px 6px; }
+    .cicon { font-size: 32px; }
+    .cname { font-size: 14px; }
+    .chestspin { font-size: 64px; }
+    .evoname { font-size: 24px; }
+    .recipes { font-size: 11px; max-width: 86vw; }
+    .recipe { font-size: 10.5px; }
+  }
 </style>
 </head>
 <body>

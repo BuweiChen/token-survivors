@@ -26,6 +26,8 @@ const Game = (() => {
   let metaRanks = JSON.parse(localStorage.getItem('ts_meta') || '{}');
 
   const keys = {};
+  // floating touch joystick: first touch sets the origin, drag to steer
+  const joy = { active: false, id: -1, ox: 0, oy: 0, mx: 0, my: 0 };
 
   // ---------- pools ----------
   const projPool = new E.Pool(() => ({}));
@@ -562,20 +564,21 @@ const Game = (() => {
     recomputeStats();
     if (buffT > 0) buffT -= dt;
 
-    // input / movement
+    // input / movement (keys are digital, joystick is analog)
     let mx = 0, my = 0;
     if (keys.a || keys.arrowleft) mx -= 1;
     if (keys.d || keys.arrowright) mx += 1;
     if (keys.w || keys.arrowup) my -= 1;
     if (keys.s || keys.arrowdown) my += 1;
-    p.moving = !!(mx || my);
+    if (joy.active && (joy.mx || joy.my)) { mx = joy.mx; my = joy.my; }
+    let mag = Math.hypot(mx, my);
+    if (mag > 1) { mx /= mag; my /= mag; mag = 1; }
+    p.moving = mag > 0.01;
     if (p.moving) {
-      const il = 1 / Math.hypot(mx, my);
-      mx *= il; my *= il;
       p.x += mx * G.P.speed * dt;
       p.y += my * G.P.speed * dt;
-      p.faceX = mx; p.faceY = my;
-      p.anim += dt * 9;
+      p.faceX = mx / mag; p.faceY = my / mag;
+      p.anim += dt * 9 * Math.max(0.5, mag);
     }
     if (p.invulnT > 0) p.invulnT -= dt;
     if (p.hurtFlash > 0) p.hurtFlash -= dt;
@@ -980,15 +983,56 @@ const Game = (() => {
       const k = ev.key.toLowerCase();
       keys[k] = true;
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) ev.preventDefault();
-      if (k === 'm') { const m = SFX.toggleMute(); UI.banner(m ? 'muted (silence is golden)' : 'unmuted (bass returns)'); }
-      if ((k === 'p' || k === 'escape')) {
-        if (G.state === 'run') { G.state = 'pause'; UI.showPause(); }
-        else if (G.state === 'pause') { G.state = 'run'; UI.hidePause(); }
-      }
+      if (k === 'm') { const m = SFX.toggleMute(); UI.banner(m ? 'muted (silence is golden)' : 'unmuted (bass returns)'); UI.syncMuteBtn(); }
+      if ((k === 'p' || k === 'escape')) togglePause();
       SFX.init();
     });
     window.addEventListener('keyup', ev => { keys[ev.key.toLowerCase()] = false; });
     window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+    initTouch();
+  }
+
+  function togglePause() {
+    if (G.state === 'run') { G.state = 'pause'; UI.showPause(); }
+    else if (G.state === 'pause') { G.state = 'run'; UI.hidePause(); }
+  }
+
+  function initTouch() {
+    const JOY_MAX = 60, DEAD = 10;
+    cv.addEventListener('touchstart', ev => {
+      SFX.init();
+      if (!joy.active) {
+        const t = ev.changedTouches[0];
+        joy.active = true; joy.id = t.identifier;
+        joy.ox = t.clientX; joy.oy = t.clientY;
+        joy.mx = 0; joy.my = 0;
+        UI.joystick(joy.ox, joy.oy, joy.ox, joy.oy, true);
+      }
+      ev.preventDefault();
+    }, { passive: false });
+    cv.addEventListener('touchmove', ev => {
+      for (const t of ev.changedTouches) {
+        if (joy.active && t.identifier === joy.id) {
+          let dx = t.clientX - joy.ox, dy = t.clientY - joy.oy;
+          const d = Math.hypot(dx, dy);
+          if (d > JOY_MAX) { dx *= JOY_MAX / d; dy *= JOY_MAX / d; }
+          joy.mx = d > DEAD ? dx / JOY_MAX : 0;
+          joy.my = d > DEAD ? dy / JOY_MAX : 0;
+          UI.joystick(joy.ox, joy.oy, joy.ox + dx, joy.oy + dy, true);
+        }
+      }
+      ev.preventDefault();
+    }, { passive: false });
+    const release = ev => {
+      for (const t of ev.changedTouches) {
+        if (joy.active && t.identifier === joy.id) {
+          joy.active = false; joy.mx = 0; joy.my = 0;
+          UI.joystick(0, 0, 0, 0, false);
+        }
+      }
+    };
+    cv.addEventListener('touchend', release);
+    cv.addEventListener('touchcancel', release);
   }
 
   function resize() {
@@ -1034,6 +1078,16 @@ const Game = (() => {
         w.evolved = true; w.evoId = DATA.WEAPONS[w.id].evo;
         WeaponSys.computeStats(w);
       }
+      // exercise the touch joystick path (synthetic touch events)
+      try {
+        const mk = (x, y) => new Touch({ identifier: 7, target: cv, clientX: x, clientY: y });
+        const x0 = G.player.x;
+        cv.dispatchEvent(new TouchEvent('touchstart', { changedTouches: [mk(200, 300)], cancelable: true }));
+        cv.dispatchEvent(new TouchEvent('touchmove', { changedTouches: [mk(260, 300)], cancelable: true }));
+        for (let i = 0; i < 30; i++) update(1 / 60);
+        cv.dispatchEvent(new TouchEvent('touchend', { changedTouches: [mk(260, 300)] }));
+        out.push(G.player.x > x0 + 50 ? 'TOUCH_OK' : 'TOUCH_NOMOVE');
+      } catch (err2) { out.push('TOUCH_FAIL ' + err2.message); }
       // one of each enemy
       for (const type in DATA.ENEMIES) spawnEnemy(type, G.player.x + E.rand(-300, 300), G.player.y + E.rand(-300, 300), false);
       keys.d = true;
@@ -1068,7 +1122,7 @@ const Game = (() => {
     window.addEventListener('resize', resize);
     initInput();
     UI.init({
-      startRun, quitToTitle, buyMeta,
+      startRun, quitToTitle, buyMeta, togglePause,
       getBank: () => bank, getBest: () => bestTime, getMeta: () => metaRanks,
       resume: () => { G.state = 'run'; },
     });

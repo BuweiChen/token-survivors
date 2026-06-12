@@ -6,6 +6,8 @@ const UI = (() => {
   let api = null;
   let root, hud, screens = {};
   let hpFill, hpText, xpFill, timerEl, killsEl, coinsEl, levelEl, iconRow, bannerBox, bossBox, bossFill, bossName, vign;
+  let joyBase, joyKnob, muteBtn;
+  const IS_TOUCH = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
   let iconsDirty = true;
   let lastHp = -1, lastXp = -1, lastTime = -1, lastKills = -1, lastCoins = -1, lastLevel = -1;
 
@@ -27,9 +29,11 @@ const UI = (() => {
     api = gameApi;
     root = document.getElementById('ui');
 
-    // vignette + banner live outside screens
+    // vignette + banner + joystick live outside screens
     vign = h('div', 'vignette', '', root);
     bannerBox = h('div', 'bannerbox', '', root);
+    joyBase = h('div', 'joybase hidden', '', root);
+    joyKnob = h('div', 'joyknob hidden', '', root);
 
     buildHud();
     buildTitle();
@@ -58,7 +62,13 @@ const UI = (() => {
     const topright = h('div', 'topright', '', hud);
     killsEl = h('div', 'stat', '\uD83D\uDC80 0', topright);
     coinsEl = h('div', 'stat', '\uD83E\uDE99 0', topright);
-    h('div', 'stat hint', '[M]ute [P]ause', topright);
+    if (!IS_TOUCH) h('div', 'stat hint', '[M]ute [P]ause', topright);
+    const btns = h('div', 'hudbtns', '', topright);
+    const pauseBtn = h('button', 'hudbtn', '\u23F8\uFE0F', btns);
+    pauseBtn.onclick = () => api.togglePause();
+    muteBtn = h('button', 'hudbtn', '', btns);
+    syncMuteBtn();
+    muteBtn.onclick = () => { SFX.toggleMute(); syncMuteBtn(); };
 
     bossBox = h('div', 'bossbox hidden', '', hud);
     bossName = h('div', 'bossname', '', bossBox);
@@ -68,6 +78,17 @@ const UI = (() => {
 
   function showHud(on) { hud.classList.toggle('hidden', !on); }
   function dirtyIcons() { iconsDirty = true; }
+  function syncMuteBtn() { if (muteBtn) muteBtn.textContent = SFX.muted ? '\uD83D\uDD07' : '\uD83D\uDD0A'; }
+
+  // floating joystick visuals (driven by game.js touch handlers)
+  function joystick(bx, by, kx, ky, show) {
+    joyBase.classList.toggle('hidden', !show);
+    joyKnob.classList.toggle('hidden', !show);
+    if (show) {
+      joyBase.style.transform = 'translate(' + (bx - 55) + 'px,' + (by - 55) + 'px)';
+      joyKnob.style.transform = 'translate(' + (kx - 24) + 'px,' + (ky - 24) + 'px)';
+    }
+  }
 
   function updateHud(G) {
     const hpPct = Math.max(0, G.player.hp / G.P.maxhp);
@@ -142,7 +163,10 @@ const UI = (() => {
     h('div', 'subtitle', 'a 100% organic free-range LLM-themed bullet heaven', s);
     const start = h('button', 'bigbtn start', '\u25B6 START RUN (free tier)', s);
     start.onclick = () => { SFX.init(); api.startRun(); };
-    h('div', 'controls', 'WASD to move. Everything else is automatic.<br>Survive 15:00. Defeat what awaits at the end.', s);
+    h('div', 'controls', (IS_TOUCH
+      ? 'Touch and drag anywhere to move. Everything else is automatic.'
+      : 'WASD to move. Everything else is automatic.') +
+      '<br>Survive 15:00. Defeat what awaits at the end.', s);
 
     const shopWrap = h('div', 'shopwrap', '', s);
     h('div', 'shoptitle', '\uD83C\uDFD7\uFE0F PRETRAINING (permanent upgrades)', shopWrap);
@@ -359,6 +383,6 @@ const UI = (() => {
   return {
     init, showTitle, hideAll, showHud, updateHud, dirtyIcons,
     showLevelup, showChest, showPause, hidePause, showOver, showWin,
-    banner, bossBar, vignette,
+    banner, bossBar, vignette, joystick, syncMuteBtn,
   };
 })();

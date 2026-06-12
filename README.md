@@ -13,8 +13,11 @@ No build step, no dependencies. Either:
 
 ## Controls
 
-- WASD (or arrows) to move. That's it. All weapons auto-fire.
-- P / Esc: pause. M: mute.
+- Desktop: WASD (or arrows) to move. That's it. All weapons auto-fire.
+  P / Esc: pause. M: mute.
+- Mobile (Chrome/Android, iOS Safari): touch and drag anywhere -- a floating
+  joystick appears under your finger. On-screen pause/mute buttons live in
+  the top-right HUD. The UI reflows for small screens.
 
 ## The theme (everything maps to the real LLM stack)
 
