@@ -213,7 +213,7 @@ const Game = (() => {
     } else if (c.id === 'coffee') {
       p.hp = Math.min(G.P.maxhp, p.hp + 30);
     } else if (c.id === 'credits') {
-      G.coins += 25;
+      G.coins += 10;
     }
     UI.dirtyIcons();
   }
@@ -265,7 +265,7 @@ const Game = (() => {
 
   function openChest() {
     const cands = evolutionCandidates();
-    const result = { coins: E.randi(15, 50) };
+    const result = { coins: E.randi(4, 10) };
     if (cands.length) {
       const w = E.choice(cands);
       w.evolved = true;
@@ -278,7 +278,7 @@ const Game = (() => {
       // no evolution ready: a chest grants exactly one upgrade level
       result.upgrades = [];
       const pool = upgradeChoicePool();
-      if (!pool.length) { result.coins += 20; }
+      if (!pool.length) { result.coins += 10; }
       else {
         const c = E.choice(pool);
         applyChoice(c);
@@ -491,7 +491,7 @@ const Game = (() => {
     // a frontier model card + credits instead
     dropGem(e.x, e.y, e.elite ? 25 : e.def.xp);
     if (e.boss) {
-      G.coins += 60;
+      G.coins += 25;
       G.shake(12);
       SFX.play('explode');
       dropPickup(e.x - 24, e.y, 'modelcard');
@@ -500,9 +500,9 @@ const Game = (() => {
       if (Math.random() < 0.03 + (G.P.luck - 1) * 0.06) dropPickup(e.x - 20, e.y, 'modelcard');
     } else {
       const r = Math.random();
-      if (r < 0.016) dropPickup(e.x, e.y, 'coin');
-      else if (r < 0.018) dropPickup(e.x, e.y, E.choice(['coffee', 'magnet', 'bomb', 'vpn']));
-      else if (r < 0.021) dropPickup(e.x, e.y, 'cookie'); // rare crumb of healing
+      if (r < 0.012) dropPickup(e.x, e.y, 'coin');
+      else if (r < 0.014) dropPickup(e.x, e.y, E.choice(['coffee', 'magnet', 'bomb', 'vpn']));
+      else if (r < 0.017) dropPickup(e.x, e.y, 'cookie'); // rare crumb of healing
     }
     if (e.def.splits && !e.mini) {
       for (let i = 0; i < 2; i++) spawnEnemy('slopMini', e.x + E.rand(-14, 14), e.y + E.rand(-14, 14), false);
@@ -566,7 +566,7 @@ const Game = (() => {
       case 'magnet': for (const g of G.gems) g.vac = true; addText(p.x, p.y - 30, 'DATA HOOVERED', '#39d7ff'); SFX.play('pickup'); break;
       case 'bomb': aoe(p.x, p.y, 9999, 300 * G.P.might, { kb: 250 }); G.shake(10); addText(p.x, p.y - 30, 'sudo rm -rf ./slop', '#ff5d5d'); SFX.play('explode'); break;
       case 'vpn': p.invulnT = 5; addText(p.x, p.y - 30, 'VPN ON (untouchable)', '#aee3ff'); SFX.play('pickup'); break;
-      case 'coin': { const c = E.randi(4, 9); G.coins += c; addText(p.x, p.y - 30, '+' + c + ' credits', '#37e07a'); SFX.play('coin'); break; }
+      case 'coin': { const c = E.randi(2, 5); G.coins += c; addText(p.x, p.y - 30, '+' + c + ' credits', '#37e07a'); SFX.play('coin'); break; }
       case 'modelcard': {
         buffT = 10;
         buffName = E.choice(DATA.FRONTIER_CARDS);

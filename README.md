@@ -71,7 +71,9 @@ normal enemies drop ("cookie accepted").
 
 Meta progression: kills drop compute credits; spend them on the title screen
 in the PRETRAINING shop (permanent ranks: parameters, H100s, epochs,
-momentum, cherry-picked evals, checkpoint backup = one revive). The shop is
+momentum, cherry-picked evals, checkpoint backup = one revive). Rank costs
+grow exponentially (x1.8 per rank); buying out the whole shop is a long-term
+goal on the order of 40 completed runs. The shop is
 not cosmetic: an unpretrained run is a genuine longshot -- winning without
 any purchases takes a lucky build. Evolutions are tuned to feel like real
 power spikes; base weapon levels are deliberately modest.

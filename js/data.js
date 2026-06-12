@@ -171,7 +171,7 @@ const DATA = (() => {
   // ---------------- BONUS (offered when nothing else to pick) ----------------
   const BONUS = {
     coffee: { name: 'Coffee', icon: '\u2615', desc: 'Heal 30 HP. The original performance enhancer.' },
-    credits: { name: 'Compute Credits', icon: '\uD83E\uDE99', desc: '+25 credits. Free tier extended.' },
+    credits: { name: 'Compute Credits', icon: '\uD83E\uDE99', desc: '+10 credits. Free tier extended.' },
   };
 
   // ---------------- ENEMIES ----------------
@@ -238,12 +238,12 @@ const DATA = (() => {
 
   // ---------------- META PROGRESSION: "PRETRAINING" shop ----------------
   const META = {
-    params:  { name: 'Moar Parameters', icon: '\uD83E\uDDEE', max: 5, cost: l => 60 * (l + 1), desc: '+10% damage / rank', stat: 'might', per: 0.10 },
-    h100s:   { name: 'Rack of H100s', icon: '\uD83D\uDDA5\uFE0F', max: 5, cost: l => 50 * (l + 1), desc: '+15 max HP / rank', stat: 'maxhp', per: 15 },
-    epochs:  { name: 'More Epochs', icon: '\uD83D\uDD01', max: 5, cost: l => 50 * (l + 1), desc: '+8% XP / rank', stat: 'growth', per: 0.08 },
-    sgd:     { name: 'Momentum (SGD)', icon: '\uD83D\uDEFC', max: 3, cost: l => 70 * (l + 1), desc: '+6% move speed / rank', stat: 'speed', per: 0.06 },
-    cherry:  { name: 'Cherry-picked Evals', icon: '\uD83C\uDF52', max: 3, cost: l => 80 * (l + 1), desc: '+10% luck / rank', stat: 'luck', per: 0.10 },
-    backup:  { name: 'Checkpoint Backup', icon: '\uD83D\uDCBE', max: 1, cost: () => 500, desc: 'Revive once per run (rm -rf the screen on respawn)', stat: 'revival', per: 1 },
+    params:  { name: 'Moar Parameters', icon: '\uD83E\uDDEE', max: 5, cost: l => Math.round(200 * Math.pow(1.8, l)), desc: '+10% damage / rank', stat: 'might', per: 0.10 },
+    h100s:   { name: 'Rack of H100s', icon: '\uD83D\uDDA5\uFE0F', max: 5, cost: l => Math.round(180 * Math.pow(1.8, l)), desc: '+15 max HP / rank', stat: 'maxhp', per: 15 },
+    epochs:  { name: 'More Epochs', icon: '\uD83D\uDD01', max: 5, cost: l => Math.round(180 * Math.pow(1.8, l)), desc: '+8% XP / rank', stat: 'growth', per: 0.08 },
+    sgd:     { name: 'Momentum (SGD)', icon: '\uD83D\uDEFC', max: 3, cost: l => Math.round(250 * Math.pow(1.8, l)), desc: '+6% move speed / rank', stat: 'speed', per: 0.06 },
+    cherry:  { name: 'Cherry-picked Evals', icon: '\uD83C\uDF52', max: 3, cost: l => Math.round(300 * Math.pow(1.8, l)), desc: '+10% luck / rank', stat: 'luck', per: 0.10 },
+    backup:  { name: 'Checkpoint Backup', icon: '\uD83D\uDCBE', max: 1, cost: () => 2500, desc: 'Revive once per run (rm -rf the screen on respawn)', stat: 'revival', per: 1 },
   };
 
   // brainrot strings
