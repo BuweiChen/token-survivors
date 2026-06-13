@@ -1245,13 +1245,9 @@ const Game = (() => {
       if (a.kind === 'turret') {
         ctx.drawImage(SPR.turret, a.x - SPR.turret.width / 2, a.y - SPR.turret.height / 2);
       } else if (a.kind === 'llama') {
-        const s = SPR.llama, sc = 1.6; // the herd: the friendly llama sprite, enlarged
-        const sw = s.width * sc, sh = s.height * sc;
-        ctx.save();
-        ctx.translate(a.x, a.y + Math.sin(G.time * 8 + a.x) * 3); // little hop
-        if ((a.fx || 0) < 0) ctx.scale(-1, 1);
-        ctx.drawImage(s, -sw / 2, -sh / 2, sw, sh);
-        ctx.restore();
+        const s = SPR.llamaIcon; // the herd: the LLaMA evo emoji
+        const hop = Math.sin(G.time * 8 + a.x) * 3;
+        ctx.drawImage(s, a.x - s.width / 2, a.y - s.height / 2 + hop);
       } else if (a.kind === 'cursor') {
         // selection highlight over the marked enemy (pulses, fills as it
         // counts down), then the blinking caret

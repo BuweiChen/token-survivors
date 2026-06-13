@@ -17,6 +17,17 @@ const SPR = (() => {
     return c;
   }
 
+  // render an emoji glyph (e.g. the LLaMA evo icon) to a sprite canvas
+  function emojiSprite(ch, px) {
+    const c = document.createElement('canvas');
+    c.width = c.height = px;
+    const g = c.getContext('2d');
+    g.font = Math.round(px * 0.82) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(ch, px / 2, px / 2 + px * 0.06);
+    return c;
+  }
+
   // ---------- PLAYER: little AI agent robot, 2 walk frames ----------
   const P_MAP = {
     o: '#ffb347', // antenna glow
@@ -683,6 +694,7 @@ const SPR = (() => {
     heart: outlined(heart, '#fff0f6', 1),
     caret: outlined(caret, '#1b3a6b', 1),
     spit: outlined(spit, '#eafff0', 1),
+    llamaIcon: emojiSprite('\uD83E\uDD99', 44), // the LLaMA evo emoji, as a minion sprite
     token, TOKEN_WORDS, CRIT_WORDS,
     bgTile: makeBgTile(),
   };
