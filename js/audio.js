@@ -36,12 +36,12 @@ const SFX = (() => {
       musicGain.connect(master);
       // melody rides its own bus, hot, with a feedback delay for soul
       melodyBus = ctx.createGain();
-      melodyBus.gain.value = 1.0;
+      melodyBus.gain.value = 0.8;
       melodyBus.connect(musicGain);
       const dly = ctx.createDelay(1);
       dly.delayTime.value = (60 / 142 / 4) * 3; // dotted-8th-ish echo
-      const fb = ctx.createGain(); fb.gain.value = 0.28;
-      const wet = ctx.createGain(); wet.gain.value = 0.22;
+      const fb = ctx.createGain(); fb.gain.value = 0.25;
+      const wet = ctx.createGain(); wet.gain.value = 0.18;
       melodyBus.connect(dly); dly.connect(fb); fb.connect(dly);
       dly.connect(wet); wet.connect(musicGain);
     } catch (e) { /* no audio, no problem */ }
@@ -169,9 +169,9 @@ const SFX = (() => {
     const f0 = midi(note);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(vol, t + 0.012); // soft attack, no click
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f0 * 4; lp.Q.value = 0.7;
+    g.gain.linearRampToValueAtTime(vol, t + 0.015); // soft attack, no click
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f0 * 3.2; lp.Q.value = 0.7;
     lp.connect(g); g.connect(melodyBus);
     // vibrato fades in after the attack, like a player would
     const lfo = ctx.createOscillator(); lfo.frequency.value = 5;
@@ -191,9 +191,9 @@ const SFX = (() => {
       }
       lfoG.connect(o.frequency);
       o.connect(og); og.connect(lp);
-      o.start(t); o.stop(t + 0.45);
+      o.start(t); o.stop(t + 0.65);
     }
-    lfo.start(t); lfo.stop(t + 0.45);
+    lfo.start(t); lfo.stop(t + 0.65);
   }
 
   // ---------------- RUN TRACK: phonk in C minor ----------------
@@ -202,20 +202,20 @@ const SFX = (() => {
     [36, -1, -1, 36, -1, -1, 39, -1, 31, -1, 31, -1, 34, -1, 41, -1],
   ];
   const MELODIES = [
-    [63, 63, 67, 63, 60, 58, 63, 60, 67, 65, 63, 58, 60, 63, 58, 55], // the OG line
-    [70, 67, 65, 63, 65, 63, 60, 58, 63, 65, 67, 70, 72, 70, 67, 65], // high answer
-    [60, 0, 63, 0, 58, 0, 55, 0, 60, 0, 63, 65, 63, 0, 58, 0],        // sparse + dark
-    [60, 63, 67, 72, 70, 67, 63, 60, 58, 62, 65, 70, 67, 63, 60, 55], // arp run
+    [63, 0, 63, 67, 0, 0, 60, 0, 58, 0, 60, 0, 63, 0, 0, 0],   // the OG line, breathing
+    [0, 0, 70, 0, 67, 65, 0, 0, 63, 0, 65, 0, 67, 0, 0, 0],    // high answer
+    [60, 0, 0, 63, 0, 0, 58, 0, 55, 0, 0, 58, 60, 0, 0, 0],    // dark and patient
+    [0, 0, 63, 0, 67, 0, 70, 0, 72, 0, 70, 67, 65, 0, 63, 0],  // rising phrase
   ];
   let lastMelNote = 0;
 
   function scheduleRun(s, t) {
     const bar = (s / 16) | 0, st = s % 16;
-    if (st === 0 || st === 7 || st === 10) kick(t);
+    if (st === 0 || st === 7 || st === 10) kick(t, st === 0 ? 1.0 : 0.8);
     if (st === 4 || st === 12) clap(t);
-    if (st % 2 === 0) hat(t, 0.035, 0.18);
-    if (st === 14) hat(t, 0.09, 0.13);
-    if (bar === 3 && st === 15) { hat(t, 0.03, 0.15); hat(t + stepDur / 2, 0.03, 0.15); }
+    if (st % 2 === 0) hat(t, 0.035, 0.12);
+    if (st === 14) hat(t, 0.09, 0.1);
+    if (bar === 3 && st === 15) { hat(t, 0.03, 0.11); hat(t + stepDur / 2, 0.03, 0.11); }
     const b = BASS_RIFFS[loopCount % 2][st];
     if (b >= 0) bass808(t, b, stepDur * 2.4);
     // lead melody on all bars; lines rotate + re-pair every loop
@@ -224,17 +224,13 @@ const SFX = (() => {
     if (st % 2 === 0) {
       const m = line[(bar % 2) * 8 + st / 2];
       if (m > 0) {
-        const accent = st % 8 === 0 ? 1.0 : st % 4 === 0 ? 0.8 : 0.6;
+        const accent = st % 8 === 0 ? 0.55 : st % 4 === 0 ? 0.45 : 0.35;
         const swing = st % 4 === 2 ? stepDur * 0.16 : 0;       // lazy off-8ths
         const human = (Math.random() - 0.5) * 0.012;           // not a robot
         const slide = lastMelNote && Math.abs(m - lastMelNote) <= 5 && Math.random() < 0.5 ? lastMelNote : 0;
         lead(t + swing + human, m, accent, slide);
         lastMelNote = m;
-        if (st % 8 === 0) lead(t + stepDur * 0.75, m + 12, 0.28);
       }
-    } else if (Math.random() < 0.08) {
-      const m = line[(bar % 2) * 8 + ((st - 1) / 2)];
-      if (m > 0) lead(t, m - 12, 0.18);
     }
   }
 
@@ -253,8 +249,8 @@ const SFX = (() => {
       o.frequency.value = midi(n);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(0.10, t + dur * 0.25);
-      g.gain.setValueAtTime(0.10, t + dur * 0.7);
+      g.gain.linearRampToValueAtTime(0.07, t + dur * 0.25);
+      g.gain.setValueAtTime(0.07, t + dur * 0.7);
       g.gain.exponentialRampToValueAtTime(0.001, t + dur);
       o.connect(g); g.connect(musicGain);
       o.start(t); o.stop(t + dur + 0.05);
@@ -266,23 +262,23 @@ const SFX = (() => {
     const chord = MENU_CHORDS[bar];
     if (st === 0) {
       pad(t, chord, 16 * stepDur);
-      kick(t, 0.6);
+      kick(t, 0.45);
     }
-    if (st === 8) kick(t, 0.45);
-    if (st === 4 || st === 12) hat(t, 0.05, 0.10);
+    if (st === 8) kick(t, 0.32);
+    if (st === 4 || st === 12) hat(t, 0.05, 0.07);
     // sparse sine arp through the melody delay (dreamy)
     if (st % 2 === 0 && Math.random() < 0.7) {
       const n = MENU_ARP[(bar * 8 + st / 2) % MENU_ARP.length] + (Math.random() < 0.15 ? 12 : 0);
       const o = ctx.createOscillator(); o.type = 'sine';
       o.frequency.value = midi(n);
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.4, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      g.gain.setValueAtTime(0.28, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
       o.connect(g); g.connect(melodyBus);
       o.start(t); o.stop(t + 0.55);
     }
     // vinyl crackle
-    if (Math.random() < 0.25) nz(t + Math.random() * stepDur, 0.015, 0.06, 4000, 'highpass');
+    if (Math.random() < 0.2) nz(t + Math.random() * stepDur, 0.015, 0.04, 4000, 'highpass');
   }
 
   // ---------------- scheduler ----------------
