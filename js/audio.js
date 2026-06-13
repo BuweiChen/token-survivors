@@ -4,7 +4,11 @@
 'use strict';
 
 const SFX = (() => {
-  const VOL = 1.0; // master level; a compressor downstream stops clipping
+  // NOTE: do NOT use DynamicsCompressorNode as the output stage -- Chrome
+  // applies automatic makeup gain inside it, which silently undoes master
+  // volume changes. We drive a tanh soft-clipper instead: loud, safe, and
+  // the saturation suits phonk anyway.
+  const VOL = 1.3; // master drive into the clipper
   let ctx = null, master = null, musicGain = null;
   let muted = E.store.get('ts_mute') === '1';
   let lastShot = 0;
@@ -13,15 +17,17 @@ const SFX = (() => {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
     try {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -16; comp.knee.value = 18; comp.ratio.value = 8;
-      comp.attack.value = 0.003; comp.release.value = 0.2;
-      comp.connect(ctx.destination);
+      const clip = ctx.createWaveShaper();
+      const curve = new Float32Array(1024);
+      for (let i = 0; i < 1024; i++) curve[i] = Math.tanh(((i / 511.5) - 1) * 2.2);
+      clip.curve = curve;
+      clip.oversample = '2x';
+      clip.connect(ctx.destination);
       master = ctx.createGain();
       master.gain.value = muted ? 0 : VOL;
-      master.connect(comp);
+      master.connect(clip);
       musicGain = ctx.createGain();
-      musicGain.gain.value = 0.85;
+      musicGain.gain.value = 1.0;
       musicGain.connect(master);
     } catch (e) { /* no audio, no problem */ }
   }
@@ -135,26 +141,27 @@ const SFX = (() => {
     const sh = ctx.createWaveShaper(); sh.curve = distCurve();
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.7, t);
-    g.gain.setValueAtTime(0.7, t + dur * 0.6);
+    g.gain.setValueAtTime(0.55, t);
+    g.gain.setValueAtTime(0.55, t + dur * 0.6);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     o.connect(sh); sh.connect(lp); lp.connect(g); g.connect(musicGain);
     o.start(t); o.stop(t + dur + 0.02);
   }
 
-  // the phonk cowbell: two detuned squares through a tight bandpass
-  function cowbell(t, note, vol = 0.42) {
+  // the phonk cowbell: two detuned squares through a wide-ish bandpass.
+  // Q kept low -- a tight band guts the level and buries it under the 808.
+  function cowbell(t, note, vol = 0.9) {
     const f0 = midi(note);
     const g = ctx.createGain();
     g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.20);
-    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f0 * 2.4; bp.Q.value = 2.5;
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f0 * 2.2; bp.Q.value = 1.2;
     bp.connect(g); g.connect(musicGain);
     for (const mul of [1, 1.5]) {
       const o = ctx.createOscillator(); o.type = 'square';
       o.frequency.value = f0 * mul;
       o.connect(bp);
-      o.start(t); o.stop(t + 0.22);
+      o.start(t); o.stop(t + 0.24);
     }
   }
 
@@ -190,12 +197,12 @@ const SFX = (() => {
       if (m > 0) {
         cowbell(t, m);
         // octave echo on downbeats for width
-        if (st % 8 === 0) cowbell(t + STEP * 0.75, m + 12, 0.16);
+        if (st % 8 === 0) cowbell(t + STEP * 0.75, m + 12, 0.4);
       }
     } else if (Math.random() < 0.12) {
       // ghost notes on off-16ths: never the same loop twice
       const m = line[(bar % 2) * 8 + ((st - 1) / 2)];
-      if (m > 0) cowbell(t, m - 12, 0.12);
+      if (m > 0) cowbell(t, m - 12, 0.3);
     }
   }
 
