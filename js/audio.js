@@ -4,7 +4,7 @@
 'use strict';
 
 const SFX = (() => {
-  const VOL = 0.65; // master level; a compressor downstream stops clipping
+  const VOL = 1.0; // master level; a compressor downstream stops clipping
   let ctx = null, master = null, musicGain = null;
   let muted = E.store.get('ts_mute') === '1';
   let lastShot = 0;
@@ -21,7 +21,7 @@ const SFX = (() => {
       master.gain.value = muted ? 0 : VOL;
       master.connect(comp);
       musicGain = ctx.createGain();
-      musicGain.gain.value = 0.5;
+      musicGain.gain.value = 0.85;
       musicGain.connect(master);
     } catch (e) { /* no audio, no problem */ }
   }
@@ -52,20 +52,20 @@ const SFX = (() => {
   }
 
   const fx = {
-    shot() { const n = performance.now(); if (n - lastShot < 70) return; lastShot = n; tone(620 + Math.random() * 120, 0.06, 'square', 0.12, -300); },
-    hit() { noise(0.05, 0.10, 2200); },
-    hurt() { tone(160, 0.18, 'sawtooth', 0.4, -80); noise(0.12, 0.2, 600); },
-    pickup() { tone(880, 0.07, 'square', 0.15, 240); },
-    coin() { tone(1175, 0.05, 'square', 0.12); tone(1568, 0.09, 'square', 0.12, 0, 0.05); },
-    levelup() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.12, 'square', 0.25, 0, i * 0.07)); },
-    chest() { [392, 523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.14, 'triangle', 0.3, 0, i * 0.08)); },
-    evolve() { [262, 330, 392, 523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.2, 'sawtooth', 0.18, 0, i * 0.06)); noise(0.5, 0.12, 800); },
-    boss() { tone(110, 0.5, 'sawtooth', 0.4, -30); tone(116, 0.5, 'sawtooth', 0.4, -30); },
-    elite() { tone(220, 0.18, 'sawtooth', 0.25, -40); tone(233, 0.18, 'sawtooth', 0.25, -40, 0.12); },
-    bestiary() { tone(660, 0.08, 'square', 0.18); tone(880, 0.1, 'square', 0.18, 0, 0.08); },
-    explode() { noise(0.35, 0.4, 700); tone(80, 0.3, 'sine', 0.5, -40); },
-    death() { tone(440, 0.9, 'sawtooth', 0.4, -400); noise(0.6, 0.3, 400); },
-    win() { [523, 659, 784, 1047, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.22, 'square', 0.25, 0, i * 0.13)); },
+    shot() { const n = performance.now(); if (n - lastShot < 70) return; lastShot = n; tone(620 + Math.random() * 120, 0.06, 'square', 0.18, -300); },
+    hit() { noise(0.05, 0.15, 2200); },
+    hurt() { tone(160, 0.18, 'sawtooth', 0.55, -80); noise(0.12, 0.3, 600); },
+    pickup() { tone(880, 0.07, 'square', 0.22, 240); },
+    coin() { tone(1175, 0.05, 'square', 0.18); tone(1568, 0.09, 'square', 0.18, 0, 0.05); },
+    levelup() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.12, 'square', 0.35, 0, i * 0.07)); },
+    chest() { [392, 523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.14, 'triangle', 0.42, 0, i * 0.08)); },
+    evolve() { [262, 330, 392, 523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.2, 'sawtooth', 0.28, 0, i * 0.06)); noise(0.5, 0.18, 800); },
+    boss() { tone(110, 0.5, 'sawtooth', 0.55, -30); tone(116, 0.5, 'sawtooth', 0.55, -30); },
+    elite() { tone(220, 0.18, 'sawtooth', 0.35, -40); tone(233, 0.18, 'sawtooth', 0.35, -40, 0.12); },
+    bestiary() { tone(660, 0.08, 'square', 0.25); tone(880, 0.1, 'square', 0.25, 0, 0.08); },
+    explode() { noise(0.35, 0.55, 700); tone(80, 0.3, 'sine', 0.6, -40); },
+    death() { tone(440, 0.9, 'sawtooth', 0.55, -400); noise(0.6, 0.4, 400); },
+    win() { [523, 659, 784, 1047, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.22, 'square', 0.35, 0, i * 0.13)); },
   };
 
   // ============================ PHONK ENGINE ============================
@@ -103,11 +103,11 @@ const SFX = (() => {
     o.type = 'sine';
     o.frequency.setValueAtTime(165, t);
     o.frequency.exponentialRampToValueAtTime(40, t + 0.12);
-    g.gain.setValueAtTime(1.1, t);
+    g.gain.setValueAtTime(1.4, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
     o.connect(g); g.connect(musicGain);
     o.start(t); o.stop(t + 0.32);
-    nz(t, 0.03, 0.3, 3000, 'highpass'); // click
+    nz(t, 0.03, 0.4, 3000, 'highpass'); // click
   }
 
   function nz(t, dur, vol, freq, type) {
@@ -122,9 +122,9 @@ const SFX = (() => {
   }
 
   function clap(t) {
-    nz(t, 0.04, 0.45, 1700, 'bandpass');
-    nz(t + 0.02, 0.05, 0.4, 1500, 'bandpass');
-    nz(t + 0.045, 0.22, 0.4, 1800, 'bandpass');
+    nz(t, 0.04, 0.6, 1700, 'bandpass');
+    nz(t + 0.02, 0.05, 0.55, 1500, 'bandpass');
+    nz(t + 0.045, 0.22, 0.55, 1800, 'bandpass');
   }
 
   const hat = (t, dur, vol) => nz(t, dur, vol, 7500, 'highpass');
@@ -135,15 +135,15 @@ const SFX = (() => {
     const sh = ctx.createWaveShaper(); sh.curve = distCurve();
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.5, t);
-    g.gain.setValueAtTime(0.5, t + dur * 0.6);
+    g.gain.setValueAtTime(0.7, t);
+    g.gain.setValueAtTime(0.7, t + dur * 0.6);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     o.connect(sh); sh.connect(lp); lp.connect(g); g.connect(musicGain);
     o.start(t); o.stop(t + dur + 0.02);
   }
 
   // the phonk cowbell: two detuned squares through a tight bandpass
-  function cowbell(t, note, vol = 0.26) {
+  function cowbell(t, note, vol = 0.42) {
     const f0 = midi(note);
     const g = ctx.createGain();
     g.gain.setValueAtTime(vol, t);
@@ -158,22 +158,44 @@ const SFX = (() => {
     }
   }
 
-  // C minor. sub riff repeats per bar; cowbell melody rides bars 3-4.
-  const BASS_RIFF = [36, -1, -1, -1, -1, -1, 39, -1, 31, -1, -1, -1, 34, -1, 38, -1];
-  const MELODY = [63, 63, 67, 63, 60, 58, 63, 60, 67, 65, 63, 58, 60, 63, 58, 55]; // 8ths, 2 bars
+  // C minor. two alternating sub riffs; four cowbell lines (16 8th-notes =
+  // 2 bars each, 0 = rest) that rotate and re-pair every loop so no two
+  // consecutive loops play the same 4 bars.
+  const BASS_RIFFS = [
+    [36, -1, -1, -1, -1, -1, 39, -1, 31, -1, -1, -1, 34, -1, 38, -1],
+    [36, -1, -1, 36, -1, -1, 39, -1, 31, -1, 31, -1, 34, -1, 41, -1],
+  ];
+  const MELODIES = [
+    [63, 63, 67, 63, 60, 58, 63, 60, 67, 65, 63, 58, 60, 63, 58, 55], // the OG line
+    [70, 67, 65, 63, 65, 63, 60, 58, 63, 65, 67, 70, 72, 70, 67, 65], // high answer
+    [60, 0, 63, 0, 58, 0, 55, 0, 60, 0, 63, 65, 63, 0, 58, 0],        // sparse + dark
+    [60, 63, 67, 72, 70, 67, 63, 60, 58, 62, 65, 70, 67, 63, 60, 55], // arp run
+  ];
+  let loopCount = 0;
 
   function scheduleStep(s, t) {
     const bar = (s / 16) | 0, st = s % 16;
     if (st === 0 || st === 7 || st === 10) kick(t);
     if (st === 4 || st === 12) clap(t);
-    if (st % 2 === 0) hat(t, 0.035, 0.16);
-    if (st === 14) hat(t, 0.09, 0.12); // open-ish
-    if (bar === 3 && st === 15) { hat(t, 0.03, 0.14); hat(t + STEP / 2, 0.03, 0.14); } // roll into loop
-    const b = BASS_RIFF[st];
+    if (st % 2 === 0) hat(t, 0.035, 0.25);
+    if (st === 14) hat(t, 0.09, 0.18); // open-ish
+    if (bar === 3 && st === 15) { hat(t, 0.03, 0.2); hat(t + STEP / 2, 0.03, 0.2); } // roll into loop
+    const b = BASS_RIFFS[loopCount % 2][st];
     if (b >= 0) bass808(t, b, STEP * 2.4);
-    if (bar >= 2 && st % 2 === 0) {
-      const m = MELODY[(bar - 2) * 8 + st / 2];
-      if (m > 0) cowbell(t, m);
+    // melody rides ALL bars: two 2-bar lines per loop, rotating pairing
+    const half = bar < 2 ? 0 : 1;
+    const line = MELODIES[(loopCount * 2 + half) % MELODIES.length];
+    if (st % 2 === 0) {
+      const m = line[(bar % 2) * 8 + st / 2];
+      if (m > 0) {
+        cowbell(t, m);
+        // octave echo on downbeats for width
+        if (st % 8 === 0) cowbell(t + STEP * 0.75, m + 12, 0.16);
+      }
+    } else if (Math.random() < 0.12) {
+      // ghost notes on off-16ths: never the same loop twice
+      const m = line[(bar % 2) * 8 + ((st - 1) / 2)];
+      if (m > 0) cowbell(t, m - 12, 0.12);
     }
   }
 
@@ -181,12 +203,14 @@ const SFX = (() => {
     if (schedTimer || !ctx) return;
     nextT = ctx.currentTime + 0.06;
     step = 0;
+    loopCount = 0;
     schedTimer = setInterval(() => {
       if (!ctx) return;
       while (nextT < ctx.currentTime + 0.12) {
         if (!muted) scheduleStep(step, nextT);
         nextT += STEP;
         step = (step + 1) % LOOP;
+        if (step === 0) loopCount++;
       }
     }, 30);
   }
