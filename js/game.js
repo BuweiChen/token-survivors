@@ -257,21 +257,30 @@ const Game = (() => {
   }
 
   // ---------- evolution / chest ----------
+  // recipe-driven: host weapon maxed + every component in needs satisfied
   function evolutionCandidates() {
     const p = G.player;
-    return p.weapons.filter(w =>
-      !w.evolved && w.lv >= DATA.WEAPONS[w.id].maxLv && (p.passives[DATA.WEAPONS[w.id].evolvesWith] || 0) > 0);
+    const out = [];
+    for (const r of DATA.RECIPES) {
+      const w = p.weapons.find(x => x.id === r.weapon);
+      if (!w || w.evolved || w.lv < DATA.WEAPONS[r.weapon].maxLv) continue;
+      const ok = r.needs.every(n => n.type === 'passive'
+        ? (p.passives[n.id] || 0) >= (n.lv || 1)
+        : p.weapons.some(x => x.id === n.id && x.lv >= (n.lv || DATA.WEAPONS[n.id].maxLv)));
+      if (ok) out.push({ w, evo: r.evo });
+    }
+    return out;
   }
 
   function openChest() {
     const cands = evolutionCandidates();
     const result = { coins: E.randi(4, 10) };
     if (cands.length) {
-      const w = E.choice(cands);
-      w.evolved = true;
-      w.evoId = DATA.WEAPONS[w.id].evo;
-      WeaponSys.computeStats(w);
-      result.evo = w.evoId;
+      const c = E.choice(cands);
+      c.w.evolved = true;
+      c.w.evoId = c.evo;
+      WeaponSys.computeStats(c.w);
+      result.evo = c.evo;
       SFX.play('evolve');
       G.shake(8);
     } else {
@@ -1332,6 +1341,18 @@ const Game = (() => {
     spawnEnemy('gpuBoss', G.player.x + 380, G.player.y - 120, false);
     for (let i = 0; i < 14; i++) dropGem(G.player.x + E.rand(-300, 300), G.player.y + E.rand(-300, 300), E.choice([1, 1, 5, 25]));
     dropPickup(G.player.x - 160, G.player.y + 120, 'chest');
+    // &cards=1: pop a deterministic level-up to inspect recipe footers
+    if (location.search.includes('cards=1')) {
+      const ts = G.player.weapons.find(w => w.id === 'tokenStream');
+      ts.lv = 7; WeaponSys.computeStats(ts);
+      G.state = 'levelup';
+      UI.showLevelup([
+        { type: 'weapon', id: 'tokenStream' },
+        { type: 'passive', id: 'gpuCluster' },
+        { type: 'weapon', id: 'rag', isNew: true },
+        { type: 'passive', id: 'kvCache', isNew: true },
+      ], () => { G.state = 'run'; });
+    }
   }
 
   // public API (used by WeaponSys + UI)

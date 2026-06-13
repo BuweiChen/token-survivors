@@ -260,6 +260,57 @@ const UI = (() => {
     lvCards = h('div', 'cards', '', box);
   }
 
+  // ---- evolution recipe status ----
+  // component chips with owned/progress/missing state. `pick` is the card
+  // being considered: it counts as +1 level so the footer answers "where
+  // does this recipe stand AFTER I take this?"
+  function recipeStatus(r, pick) {
+    const p = Game.player;
+    const comps = [{ type: 'weapon', id: r.weapon, lv: DATA.WEAPONS[r.weapon].maxLv }]
+      .concat(r.needs.map(n => ({ type: n.type, id: n.id, lv: n.lv || (n.type === 'weapon' ? DATA.WEAPONS[n.id].maxLv : 1) })));
+    let allOk = true, anyOwned = false, html = '';
+    for (const c of comps) {
+      let cur = 0, def;
+      if (c.type === 'weapon') {
+        def = DATA.WEAPONS[c.id];
+        const w = p.weapons.find(x => x.id === c.id);
+        cur = w ? (w.evolved ? c.lv : w.lv) : 0;
+      } else {
+        def = DATA.PASSIVES[c.id];
+        cur = p.passives[c.id] || 0;
+      }
+      if (pick && pick.type === c.type && pick.id === c.id) cur += 1;
+      const ok = cur >= c.lv;
+      if (!ok) allOk = false;
+      if (cur > 0) anyOwned = true;
+      const stat = ok ? '\u2714' : (c.lv > 1 ? cur + '/' + c.lv : '\u2718');
+      html += '<span class="rcomp ' + (ok ? 'ok' : cur > 0 ? 'part' : 'miss') + '" title="' + def.name + '">' +
+        def.icon + '&nbsp;' + stat + '</span>';
+    }
+    return { allOk, anyOwned, html };
+  }
+
+  // recipe footer for an upgrade card: every evolution this item is part of
+  function evoFooterHtml(type, id) {
+    let out = '';
+    for (const r of DATA.RECIPES) {
+      const involved = (type === 'weapon' && r.weapon === id) ||
+        r.needs.some(n => n.type === type && n.id === id);
+      if (!involved) continue;
+      const host = Game.player.weapons.find(x => x.id === r.weapon);
+      if (host && host.evolved) continue; // already done, no need to advertise
+      const evo = DATA.EVOLUTIONS[r.evo];
+      const st = recipeStatus(r, { type, id });
+      const cls = st.allOk ? 'ready' : st.anyOwned ? 'part' : '';
+      const head = st.allOk
+        ? '\u26a1 UNLOCKS ' + evo.icon + ' ' + evo.name + ' \u2014 grab a \ud83d\udce6 chest!'
+        : 'evo: ' + evo.icon + ' ' + evo.name;
+      out += '<div class="evorecipe ' + cls + '"><div class="rhead">' + head + '</div>' +
+        '<div class="rcomps">' + st.html + '</div></div>';
+    }
+    return out;
+  }
+
   function cardHtml(c) {
     if (c.type === 'weapon') {
       const def = DATA.WEAPONS[c.id];
@@ -268,16 +319,15 @@ const UI = (() => {
       const next = lv + 1;
       const tag = lv === 0 ? '<span class="tag new">NEW!</span>' : '<span class="tag">LV ' + lv + ' \u2192 ' + next + '</span>';
       const detail = lv === 0 ? def.desc : def.lvlDesc[lv - 1];
-      const evoHint = '<div class="evohint">evolves with ' + DATA.PASSIVES[def.evolvesWith].icon + ' ' + DATA.PASSIVES[def.evolvesWith].name + '</div>';
       return '<div class="cicon">' + def.icon + '</div><div class="cname">' + def.name + '</div>' + tag +
-        '<div class="cdesc">' + detail + '</div>' + (lv === 0 ? evoHint : '');
+        '<div class="cdesc">' + detail + '</div>' + evoFooterHtml('weapon', c.id);
     }
     if (c.type === 'passive') {
       const def = DATA.PASSIVES[c.id];
       const lv = Game.player.passives[c.id] || 0;
       const tag = lv === 0 ? '<span class="tag new">NEW!</span>' : '<span class="tag">LV ' + lv + ' \u2192 ' + (lv + 1) + '</span>';
       return '<div class="cicon">' + def.icon + '</div><div class="cname">' + def.name + '</div>' + tag +
-        '<div class="cdesc">' + (lv === 0 ? def.desc : def.fmt) + '</div>';
+        '<div class="cdesc">' + (lv === 0 ? def.desc : def.fmt) + '</div>' + evoFooterHtml('passive', c.id);
     }
     const def = DATA.BONUS[c.id];
     return '<div class="cicon">' + def.icon + '</div><div class="cname">' + def.name + '</div><div class="cdesc">' + def.desc + '</div>';
@@ -375,18 +425,18 @@ const UI = (() => {
   function showPause() {
     let html = '<div class="rectitle">your build:</div>';
     for (const w of Game.player.weapons) {
-      const def = DATA.WEAPONS[w.id];
       if (w.evolved) {
         const evo = DATA.EVOLUTIONS[w.evoId];
         html += '<div class="recipe done">' + evo.icon + ' <b>' + evo.name + '</b> (frontier model, GGs)</div>';
-      } else {
-        const pas = DATA.PASSIVES[def.evolvesWith];
-        const has = (Game.player.passives[def.evolvesWith] || 0) > 0;
-        const ready = w.lv >= def.maxLv && has;
-        html += '<div class="recipe' + (ready ? ' ready' : '') + '">' + def.icon + ' ' + def.name + ' lv' + w.lv + '/' + def.maxLv +
-          ' + ' + pas.icon + ' ' + pas.name + (has ? ' \u2714' : ' \u2718') +
-          ' \u2192 ' + DATA.EVOLUTIONS[def.evo].icon + ' ' + DATA.EVOLUTIONS[def.evo].name +
-          (ready ? ' <b>(OPEN A \uD83D\uDCE6 CHEST!)</b>' : '') + '</div>';
+        continue;
+      }
+      for (const r of DATA.RECIPES) {
+        if (r.weapon !== w.id) continue;
+        const evo = DATA.EVOLUTIONS[r.evo];
+        const st = recipeStatus(r, null);
+        html += '<div class="recipe' + (st.allOk ? ' ready' : '') + '">' +
+          st.html + ' \u2192 ' + evo.icon + ' ' + evo.name +
+          (st.allOk ? ' <b>(OPEN A \uD83D\uDCE6 CHEST!)</b>' : '') + '</div>';
       }
     }
     pauseRecipes.innerHTML = html;

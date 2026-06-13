@@ -175,7 +175,19 @@
   .tag { display: inline-block; font: 900 11px Impact, sans-serif; background: #2c3245; border-radius: 4px; padding: 2px 7px; margin-top: 4px; color: #aee3ff; }
   .tag.new { background: #c41e1e; color: #fff; animation: bossblink .6s steps(2) infinite; }
   .cdesc { font-size: 11.5px; color: #aab4c8; margin-top: 7px; line-height: 1.45; }
-  .evohint { font-size: 10px; color: #ffd84d; margin-top: 7px; }
+  /* evolution recipe footer on upgrade cards */
+  .evorecipe { margin-top: 8px; background: rgba(0,0,0,.35); border: 1px dashed #4a5680; border-radius: 7px; padding: 5px 6px; }
+  .evorecipe .rhead { font: 900 10px Impact, sans-serif; color: #8a93ad; letter-spacing: .4px; }
+  .evorecipe .rcomps { margin-top: 3px; }
+  .evorecipe.part { border-color: #7baaf7; }
+  .evorecipe.part .rhead { color: #aee3ff; }
+  .evorecipe.ready { border: 2px solid #ffd84d; animation: evoglow 1s ease-in-out infinite alternate; }
+  .evorecipe.ready .rhead { color: #ffd84d; animation: bossblink .7s steps(2) infinite; }
+  .rcomp { display: inline-block; margin: 1px 3px 0 0; padding: 1px 5px; background: #1b2138; border: 1px solid #2c3245; border-radius: 4px; font-size: 10px; }
+  .rcomp.ok { color: #54ff8e; border-color: #2e8a47; }
+  .rcomp.part { color: #ffd84d; border-color: #6b5310; }
+  .rcomp.miss { color: #6b7490; opacity: .75; }
+  .recipe .rcomp { font-size: 11px; }
   .autobtn { display: block; margin: 9px auto 0; font: 900 10px Impact, sans-serif; background: #2c3245; color: #aee3ff;
     border: 2px solid #4a5680; border-radius: 6px; padding: 4px 8px; letter-spacing: .5px; }
   .autobtn:hover { background: #3a6ea5; color: #fff; }

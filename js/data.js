@@ -154,6 +154,16 @@ const DATA = (() => {
     },
   };
 
+  // ---------------- EVOLUTION RECIPES ----------------
+  // host weapon must be MAX LEVEL, plus every component in `needs`.
+  // generated from the weapon table today, but recipes are standalone so
+  // future evos can require multiple components (or different hosts).
+  const RECIPES = Object.keys(WEAPONS).map(wid => ({
+    evo: WEAPONS[wid].evo,
+    weapon: wid,
+    needs: [{ type: 'passive', id: WEAPONS[wid].evolvesWith, lv: 1 }],
+  }));
+
   // ---------------- PASSIVES (max level 5) ----------------
   const PASSIVES = {
     gpuCluster: { name: 'GPU Cluster', icon: '\uD83C\uDF9B\uFE0F', maxLv: 5, stat: 'might', per: 0.10, fmt: '+10% damage', desc: 'Throw compute at the problem. It works. It always works.' },
@@ -260,5 +270,5 @@ const DATA = (() => {
     'RLHF says: \uD83D\uDC4E',
   ];
 
-  return { WEAPONS, EVOLUTIONS, PASSIVES, BONUS, ENEMIES, WAVES, BOSSES, FRONTIER_CARDS, META, MARQUEE, LEVELUP_HEADERS, DEATH_LINES, BESTIARY_HEADERS, ELITE_SUBS, MAX_WEAPONS: 6, MAX_PASSIVES: 6, RUN_TIME: 900 };
+  return { WEAPONS, EVOLUTIONS, RECIPES, PASSIVES, BONUS, ENEMIES, WAVES, BOSSES, FRONTIER_CARDS, META, MARQUEE, LEVELUP_HEADERS, DEATH_LINES, BESTIARY_HEADERS, ELITE_SUBS, MAX_WEAPONS: 6, MAX_PASSIVES: 6, RUN_TIME: 900 };
 })();
