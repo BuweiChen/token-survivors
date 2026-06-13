@@ -85,6 +85,7 @@ const SFX = (() => {
     boss() { tone(110, 0.5, 'sawtooth', 0.55, -30); tone(116, 0.5, 'sawtooth', 0.55, -30); },
     elite() { tone(220, 0.18, 'sawtooth', 0.35, -40); tone(233, 0.18, 'sawtooth', 0.35, -40, 0.12); },
     bestiary() { tone(660, 0.08, 'square', 0.25); tone(880, 0.1, 'square', 0.25, 0, 0.08); },
+    zap() { tone(1400 + Math.random() * 400, 0.05, 'sawtooth', 0.16, -700); noise(0.03, 0.08, 5000); },
     explode() { noise(0.35, 0.55, 700); tone(80, 0.3, 'sine', 0.6, -40); },
     death() { tone(440, 0.9, 'sawtooth', 0.55, -400); noise(0.6, 0.4, 400); },
     win() { [523, 659, 784, 1047, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.22, 'square', 0.35, 0, i * 0.13)); },

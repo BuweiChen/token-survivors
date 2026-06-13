@@ -28,6 +28,7 @@ const WeaponSys = (() => {
 
   // ChatGPT glazes you. these heal on hit.
   const GLAZE_WORDS = ['slay', 'based', 'valid', 'W', 'goated', 'peak', 'fr', 'so true'];
+  const GLAZE_LINES = ["you're absolutely right!", "you slay", "that's so valid", "great question!", "you're so based", "chef's kiss"];
 
   // ---------------------------------------------------------------- handlers
   const H = {};
@@ -54,8 +55,15 @@ const WeaponSys = (() => {
           x: G.player.x, y: G.player.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
           dmg: (crit ? 2.5 : 1) * dmg(G, w.s.dmg * 1.3 + 5, w), crit, r: 9, pierce: 3 + w.s.pierce, life: 1.3,
           kind: 'straight', spr: SPR.token(word, crit), rot: a,
-          burnColor: '#54ff8e',
-          onHit: glaze ? () => { G.player.hp = Math.min(G.P.maxhp, G.player.hp + 1); } : null,
+          onHit: glaze ? () => {
+            G.player.hp = Math.min(G.P.maxhp, G.player.hp + 2);
+            // vivid, throttled glaze feedback: a phrase + a burst of hearts
+            if (G.time - (w.glazeT || -9) > 1.1) {
+              w.glazeT = G.time;
+              G.addText(G.player.x, G.player.y - 36, 'chatgpt thinks ' + E.choice(GLAZE_LINES), '#ff79c6', 15);
+              G.hearts(G.player.x, G.player.y - 10, 6);
+            }
+          } : null,
         });
       }
       SFX.play('shot');
@@ -81,46 +89,71 @@ const WeaponSys = (() => {
   }
 
   // ---- ATTENTION HEADS / OPUS 4.8 ----
+  // softmax over directions: bin enemies by angle (weighted by closeness +
+  // threat), then fire a wide beam at the highest-attention direction. Opus
+  // 4.8 = multi-head: several beams at the top distinct clusters at once, and
+  // it executes the highest-attention target in each swath.
+  function attentionDirs(G, heads) {
+    const BIN = 24, bins = new Float32Array(BIN);
+    const px = G.player.x, py = G.player.y;
+    for (const e of G.enemies) {
+      const dx = e.x - px, dy = e.y - py, dist = Math.hypot(dx, dy);
+      if (dist > 1200) continue;
+      const bi = (((Math.atan2(dy, dx) / E.TAU) * BIN + BIN) % BIN) | 0;
+      const wgt = 1 / (1 + dist / 220) + (e.boss ? 3 : e.elite ? 1 : 0);
+      bins[bi] += wgt; bins[(bi + 1) % BIN] += wgt * 0.4; bins[(bi + BIN - 1) % BIN] += wgt * 0.4;
+    }
+    const order = [...Array(BIN).keys()].sort((a, b) => bins[b] - bins[a]);
+    const chosen = [];
+    for (const bi of order) {
+      if (bins[bi] <= 0) break;
+      if (chosen.some(c => Math.min(Math.abs(c - bi), BIN - Math.abs(c - bi)) < 3)) continue;
+      chosen.push(bi);
+      if (chosen.length >= heads) break;
+    }
+    return chosen.map(bi => (bi + 0.5) / BIN * E.TAU);
+  }
+  function fireSwath(G, w, a, halfW, len, d, evolved) {
+    const px = G.player.x, py = G.player.y, ca = Math.cos(a), sa = Math.sin(a);
+    const mark = ++G.frameMark, steps = Math.ceil(len / 80);
+    let top = null, topHp = -1;
+    for (let s = 0; s <= steps; s++) {
+      const sx = px + ca * (len * s / steps), sy = py + sa * (len * s / steps);
+      const cands = G.grid.query(sx, sy, halfW + 60);
+      for (const e of cands) {
+        if (e._mark === mark || e.hp <= 0) continue;
+        const rx = e.x - px, ry = e.y - py;
+        const fwd = rx * ca + ry * sa; if (fwd < -e.r || fwd > len) continue;
+        const perp = Math.abs(-rx * sa + ry * ca); if (perp > halfW + e.r) continue;
+        e._mark = mark;
+        G.hitEnemy(e, d, { kb: 50 });
+        if (e.maxhp > topHp) { topHp = e.maxhp; top = e; }
+      }
+    }
+    // visual: translucent wide swath + bright focused core
+    const ex = px + ca * len, ey = py + sa * len;
+    G.addBeam(px, py, ex, ey, evolved ? 'rgba(255,216,77,0.22)' : 'rgba(255,93,177,0.22)', halfW * 1.6);
+    G.addBeam(px, py, ex, ey, '#ffffff', evolved ? 6 : 4);
+    // the attended token: reticle + an execute bonus on the top-weight target
+    if (top) {
+      G.ring(top.x, top.y, top.r + 16, '#fff', 0.25);
+      if (evolved) G.hitEnemy(top, Math.min(top.maxhp * 0.03, 120), { kb: 0, quiet: true });
+    }
+  }
   H.attention = (G, w, dt) => {
     w.t -= dt;
     if (w.t > 0) return;
     const evolved = w.evolved;
-    w.t = cd(G, evolved ? w.s.cd * 0.55 : w.s.cd);
-    const n = cnt(G, w.s.count) + (evolved ? 2 : 0);
-    const range = area(G, w.s.range) * (evolved ? 1.4 : 1);
-    const targets = G.topEnemies(n, range);
-    if (!targets.length) { w.t = 0.15; return; }
-    const d = dmg(G, evolved ? w.s.dmg * 2.2 : w.s.dmg, w);
-    for (const e of targets) {
-      G.addBeam(G.player.x, G.player.y - 10, e.x, e.y, evolved ? '#ffd84d' : '#ff5db1', evolved ? 6 : 3);
-      if (evolved) {
-        // Opus 4.8: attention weights -> it attends to what MATTERS. Bonus
-        // damage scales with the target's max HP, executing the big threats.
-        const focus = d + Math.min(e.maxhp * 0.02, 90);
-        beamPierce(G, G.player.x, G.player.y, e.x, e.y, focus);
-        G.ring(e.x, e.y, 26, '#ffd84d', 0.2);
-      } else {
-        G.hitEnemy(e, d, { crit: critRoll(G), kb: 60 });
-      }
-    }
+    w.t = cd(G, evolved ? w.s.cd * 0.8 : w.s.cd);
+    const heads = evolved ? 2 + (G.P.amount > 0 ? 1 : 0) : 1;
+    const dirs = attentionDirs(G, heads);
+    if (!dirs.length) { w.t = 0.15; return; }
+    const halfW = area(G, w.s.halfW) * (evolved ? 1.25 : 1);
+    const len = w.s.range * (evolved ? 1.3 : 1);
+    const d = dmg(G, evolved ? w.s.dmg * 1.6 : w.s.dmg, w);
+    for (const a of dirs) fireSwath(G, w, a, halfW, len, d, evolved);
     SFX.play('hit');
   };
-  function beamPierce(G, x1, y1, x2, y2, d) {
-    const len = Math.hypot(x2 - x1, y2 - y1) || 1;
-    const steps = Math.ceil(len / 70);
-    const mark = ++G.frameMark;
-    for (let i = 0; i <= steps; i++) {
-      const x = x1 + (x2 - x1) * i / steps, y = y1 + (y2 - y1) * i / steps;
-      const cands = G.grid.query(x, y, 40);
-      for (const e of cands) {
-        if (e._mark === mark) continue;
-        if (E.dist2(x, y, e.x, e.y) < (40 + e.r) * (40 + e.r)) {
-          e._mark = mark;
-          G.hitEnemy(e, d, { kb: 40 });
-        }
-      }
-    }
-  }
 
   // ---- CONTEXT WINDOW / FABLE 5 ----
   H.contextWindow = (G, w, dt) => {
@@ -153,41 +186,73 @@ const WeaponSys = (() => {
   };
 
   // ---- CHAIN OF THOUGHT / DEEPSEEK-R1 ----
+  // a bolt that hits a target, PAUSES to "think," then leaps onward. The
+  // delay between jumps is the reasoning step. DeepSeek-R1 branches (each
+  // node forks to 2 targets, a reasoning tree) and stuns much longer.
+  function nearestUnhit(G, x, y, range, hit) {
+    const cands = G.grid.query(x, y, range);
+    let best = null, bd = range * range;
+    for (const e of cands) {
+      if (e.hp <= 0 || hit.has(e.id)) continue;
+      const dd = E.dist2(x, y, e.x, e.y);
+      if (dd < bd) { bd = dd; best = e; }
+    }
+    return best;
+  }
+  function zap(G, w) { if (G.time - (w.zapT || -9) > 0.05) { w.zapT = G.time; SFX.play('zap'); } }
+  function stepChain(G, w, dt) {
+    if (!w.bolts || !w.bolts.length) return;
+    for (let i = w.bolts.length - 1; i >= 0; i--) {
+      const b = w.bolts[i];
+      b.delay -= dt;
+      if (b.delay > 0) continue;
+      w.bolts.splice(i, 1);
+      const ctx = b.ctx, tgt = b.tgt;
+      let ox = b.fx, oy = b.fy;
+      if (tgt && tgt.hp > 0) {
+        G.addBeam(b.fx, b.fy, tgt.x, tgt.y, ctx.color, ctx.evolved ? 4 : 3);
+        G.hitEnemy(tgt, b.d, { kb: 30, quiet: true });
+        tgt.stunT = Math.max(tgt.stunT || 0, ctx.stun);
+        G.spark(tgt.x, tgt.y, ctx.color, ctx.evolved ? 5 : 3);
+        zap(G, w);
+        ox = tgt.x; oy = tgt.y;
+      }
+      // think, then fork onward to the next reasoning step(s)
+      for (let k = 0; k < ctx.branch && ctx.budget > 0; k++) {
+        const nx = nearestUnhit(G, ox, oy, ctx.range, ctx.hit);
+        if (!nx) break;
+        ctx.hit.add(nx.id);
+        ctx.budget--;
+        G.addBeam(ox, oy, nx.x, nx.y, ctx.dim, 1); // faint telegraph of the next jump
+        w.bolts.push({ fx: ox, fy: oy, tgt: nx, delay: ctx.step, d: b.d * ctx.growth, ctx });
+      }
+    }
+  }
   H.chainOfThought = (G, w, dt) => {
     const evolved = w.evolved;
     w.t -= dt;
-    const p = G.player;
+    stepChain(G, w, dt);
     if (w.t > 0) return;
-    w.t = cd(G, w.s.cd);
-    // Chain of Thought: a bolt that leaps enemy-to-enemy, one reasoning step
-    // per jump. DeepSeek-R1 reasons deeper -- many more jumps, each hitting
-    // harder than the last (escalating confidence). No detonations, no shake.
-    const start = G.nearestEnemy(p.x, p.y, 560);
+    const start = G.nearestEnemy(G.player.x, G.player.y, 560);
     if (!start) { w.t = 0.12; return; }
-    const jumps = w.s.chains + (evolved ? 6 : 0);
-    const range = area(G, w.s.range) * (evolved ? 1.5 : 1);
-    const range2 = range * range;
-    const growth = evolved ? 1.12 : 1;
-    let d = dmg(G, evolved ? w.s.dmg * 1.5 : w.s.dmg, w);
-    const mark = ++G.frameMark;
-    let cur = start, px = p.x, py = p.y;
-    for (let j = 0; j <= jumps && cur; j++) {
-      cur._mark = mark;
-      G.addBeam(px, py, cur.x, cur.y, evolved ? '#7df9ff' : '#9ad0ff', evolved ? 4 : 3);
-      G.hitEnemy(cur, d, { kb: 30, quiet: true });
-      G.spark(cur.x, cur.y, evolved ? '#7df9ff' : '#9ad0ff', 3);
-      px = cur.x; py = cur.y;
-      d *= growth;
-      const cands = G.grid.query(px, py, range);
-      let best = null, bd = range2;
-      for (const e of cands) {
-        if (e._mark === mark || e.hp <= 0) continue;
-        const dd = E.dist2(px, py, e.x, e.y);
-        if (dd < bd) { bd = dd; best = e; }
-      }
-      cur = best;
-    }
-    SFX.play('hit');
+    w.t = cd(G, w.s.cd);
+    w.bolts = w.bolts || [];
+    const ctx = {
+      hit: new Set(), budget: evolved ? 16 : w.s.chains + 1,
+      range: area(G, w.s.range) * (evolved ? 1.4 : 1),
+      branch: evolved ? 2 : 1,
+      step: evolved ? 0.12 : 0.16,           // the "thinking" pause between jumps
+      stun: evolved ? 1.1 : 0.45,
+      growth: evolved ? 1.08 : 1,
+      color: evolved ? '#7df9ff' : '#9ad0ff',
+      dim: evolved ? 'rgba(125,249,255,0.3)' : 'rgba(154,208,255,0.3)',
+      evolved,
+    };
+    ctx.hit.add(start.id);
+    ctx.budget--;
+    const d0 = dmg(G, evolved ? w.s.dmg * 1.4 : w.s.dmg, w);
+    G.addBeam(G.player.x, G.player.y, start.x, start.y, ctx.color, evolved ? 4 : 3);
+    w.bolts.push({ fx: G.player.x, fy: G.player.y, tgt: start, delay: 0.04, d: d0, ctx });
   };
 
   // ---- RAG / PERPLEXITY ----
@@ -465,27 +530,25 @@ const WeaponSys = (() => {
     w.t = cd(G, w.s.cd);
     const evolved = w.evolved;
     const n = cnt(G, w.s.count) + (evolved ? 2 : 0);
-    // Constitutional AI: the base weapon is "confidently wrong" -- it sprays
-    // in random directions. Aligned, every shot becomes confidently RIGHT:
-    // it homes true on the nearest enemies, and crits "redeem" the target
-    // with a constitutional pulse that heals you.
+    // CURSOR: the base weapon is "confidently wrong" -- it sprays in random
+    // directions. Evolved, it stops hallucinating and starts AUTOCOMPLETING:
+    // carets lock onto the nearest enemies and Tab from edit to edit (homing
+    // + high pierce + low wobble), accepting suggestion after suggestion.
     const aimAt = evolved ? G.nearestEnemy(G.player.x, G.player.y, 9999) : null;
     for (let i = 0; i < n; i++) {
       const a = evolved && aimAt
-        ? E.ang(G.player.x, G.player.y, aimAt.x, aimAt.y) + E.rand(-0.5, 0.5)
+        ? E.ang(G.player.x, G.player.y, aimAt.x, aimAt.y) + (i - (n - 1) / 2) * 0.22
         : E.rand(E.TAU);
-      const v = spd(G, w.s.speed) * (evolved ? 1.25 : 1);
+      const v = spd(G, w.s.speed) * (evolved ? 1.35 : 1);
       const crit = Math.random() < w.s.critCh + (G.P.luck - 1) * 0.3 + (evolved ? 0.1 : 0);
       G.fireProj({
         x: G.player.x, y: G.player.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-        dmg: dmg(G, evolved ? w.s.dmg * 1.7 : w.s.dmg, w) * (crit ? 3 : 1), crit,
-        r: 10, pierce: evolved ? 3 : 1, life: 2.4,
-        kind: 'wobble', wobA: E.rand(E.TAU), spr: SPR.halluc,
+        dmg: dmg(G, evolved ? w.s.dmg * 1.6 : w.s.dmg, w) * (crit ? 3 : 1), crit,
+        r: 10, pierce: evolved ? 5 : 1, life: evolved ? 3 : 2.4,
+        kind: 'wobble', wobA: E.rand(E.TAU), spr: evolved ? SPR.caret : SPR.halluc,
         seek: evolved, alignedSeek: evolved, healOnCrit: evolved,
-        onHit: (evolved && crit) ? (en) => {
-          // redemption: a constitutional pulse on the crit's target
-          G.aoe(en.x, en.y, 62, dmg(G, w.s.dmg * 1.0, w), { kb: 70 });
-          G.ring(en.x, en.y, 62, '#b347ff', 0.3);
+        onHit: evolved ? () => {
+          if (G.time - (w.tabT || -9) > 0.6) { w.tabT = G.time; G.addText(G.player.x, G.player.y - 38, E.choice(['Tab', 'Tab >>', 'accept']), '#aef0ff', 13); }
         } : null,
       });
     }

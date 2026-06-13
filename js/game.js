@@ -369,7 +369,7 @@ const Game = (() => {
     e.flash = 0; e.kbx = 0; e.kby = 0; e.slowT = 0; e.wobble = E.rand(E.TAU);
     e.dashT = 0; e.spawnT = 0; e._mark = 0;
     e.abilT = 3; e.abil2T = 8; e.telegraphT = 0; e.chargeT = 0; e.cvx = 0; e.cvy = 0; e.enraged = false;
-    e.burnT = 0; e.burnDps = 0; e.burnAcc = 0; e.burnColor = '#ff7b2e'; e.logT = 0; e.cite = 0;
+    e.burnT = 0; e.burnDps = 0; e.burnAcc = 0; e.burnColor = '#ff7b2e'; e.logT = 0; e.cite = 0; e.stunT = 0;
     e.spr = SPR.enemies[def.spr];
     G.enemies.push(e);
     if (def.lore && !seenEnemies[type] && !G.testMode) {
@@ -550,8 +550,13 @@ const Game = (() => {
     // a frontier model card + credits instead
     // XP scales sublinearly with enemy toughness so under-leveled players
     // can still climb out, but late levels still cost more than early ones
-    const xpGrow = Math.pow(basicHpAt() / BASE_HP0, 0.6);
-    let xpv = e.def.xp * xpGrow * 2 * (e.elite ? 4 : 1);
+    // XP keeps early leveling brisk but is progressively taxed over time, so
+    // weapons max (and thus evolve) more slowly the longer the run goes -- the
+    // first evo lands ~first boss, later ones come steadily, not all at once.
+    const m = G.time / 60;
+    const xpGrow = Math.pow(basicHpAt() / BASE_HP0, 0.5);
+    const tax = E.clamp(1.25 - m * 0.07, 0.45, 1.25);
+    let xpv = e.def.xp * xpGrow * 2 * tax * (e.elite ? 4 : 1);
     dropGem(e.x, e.y, Math.max(1, Math.round(xpv)));
     if (e.boss) {
       G.coins += 25;
@@ -662,7 +667,20 @@ const Game = (() => {
       const a = E.rand(E.TAU), v = E.rand(40, 240);
       pt.x = x; pt.y = y; pt.vx = Math.cos(a) * v; pt.vy = Math.sin(a) * v;
       pt.life = pt.maxLife = E.rand(0.25, 0.6);
-      pt.color = color; pt.size = E.rand(2, 5);
+      pt.color = color; pt.size = E.rand(2, 5); pt.spr = null; pt.float = false;
+      G.parts.push(pt);
+    }
+  }
+
+  // rising sprite particles (ChatGPT glaze hearts)
+  function hearts(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      if (G.parts.length > 500) return;
+      const pt = partPool.get();
+      pt.x = x + E.rand(-24, 24); pt.y = y + E.rand(-14, 10);
+      pt.vx = E.rand(-30, 30); pt.vy = E.rand(-115, -60);
+      pt.life = pt.maxLife = E.rand(0.7, 1.1);
+      pt.color = '#ff79c6'; pt.size = 1; pt.spr = SPR.heart; pt.float = true;
       G.parts.push(pt);
     }
   }
@@ -900,6 +918,8 @@ const Game = (() => {
       let sp = e.spd * (e.slowT > 0 ? 0.5 : 1);
       if (e.slowT > 0) e.slowT -= dt;
       if (e.boss) sp = bossAbilities(e, dt, sp);
+      // chain-lightning stun: freezes regular enemies, only slows bosses
+      if (e.stunT > 0) { e.stunT -= dt; sp = e.boss ? sp * 0.5 : 0; }
       if (e.chargeT > 0) {
         // mid-charge: barrel along the locked direction
         e.chargeT -= dt;
@@ -983,7 +1003,7 @@ const Game = (() => {
       const pt = G.parts[i];
       pt.life -= dt;
       pt.x += pt.vx * dt; pt.y += pt.vy * dt;
-      pt.vx *= 0.92; pt.vy *= 0.92;
+      pt.vx *= 0.92; pt.vy *= pt.float ? 0.99 : 0.92; // hearts keep rising
       if (pt.life <= 0) { G.parts[i] = G.parts[G.parts.length - 1]; G.parts.pop(); partPool.put(pt); }
     }
 
@@ -1266,8 +1286,12 @@ const Game = (() => {
     // particles
     for (const pt of G.parts) {
       ctx.globalAlpha = E.clamp(pt.life / pt.maxLife, 0, 1);
-      ctx.fillStyle = pt.color;
-      ctx.fillRect(pt.x - pt.size / 2, pt.y - pt.size / 2, pt.size, pt.size);
+      if (pt.spr) {
+        ctx.drawImage(pt.spr, pt.x - pt.spr.width / 2, pt.y - pt.spr.height / 2);
+      } else {
+        ctx.fillStyle = pt.color;
+        ctx.fillRect(pt.x - pt.size / 2, pt.y - pt.size / 2, pt.size, pt.size);
+      }
     }
     ctx.globalAlpha = 1;
 
@@ -1537,7 +1561,7 @@ const Game = (() => {
   Object.assign(G, {
     boot, startRun, quitToTitle,
     nearestEnemy, topEnemies, randomVisibleEnemy,
-    fireProj, addBeam, addZone, hitEnemy, aoe, spark, ring, addText, shake, burn,
+    fireProj, addBeam, addZone, hitEnemy, aoe, spark, ring, hearts, addText, shake, burn,
     vacuumGems, announce: t => UI.banner(t),
     get buffT() { return buffT; },
   });

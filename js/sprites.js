@@ -474,20 +474,41 @@ const SPR = (() => {
   ], { o: '#e07b39', B: '#1b1e2b' });
 
   // LLaMA fork: a friendly llama (side view), green collar + green outline
-  // so it clearly reads as on your team
+  // so it clearly reads as on your team. ears, snout, upright neck, fluffy
+  // body, tail, four legs.
   const llama = pat([
-    '.....hh.',
-    '.....hh.',
-    '.....he.',
-    '....nn..',
-    '....nn..',
-    '...cnc..',
-    '.bbbbbb.',
-    'bbbbbbbb',
-    'bbbbbbbb',
-    'b.bb.bb.',
-    'l.ll.ll.',
-  ], { h: '#efe2c4', e: '#1b1e2b', n: '#efe2c4', c: '#3ce06a', b: '#f6ead0', l: '#a9854f' });
+    '......b.b.',
+    '......bbb.',
+    '......bbe.',
+    '.....bbb..',
+    '....bb....',
+    '...bbb....',
+    '.bbbbbbb..',
+    'bbbbbbbbb.',
+    'bbbbbbbbb.',
+    'b.bb.bb...',
+    'l.ll.ll...',
+  ], { b: '#f3e3c0', e: '#1b1e2b', l: '#b89a66' });
+
+  // Cursor caret: a text-editor I-beam
+  const caret = pat([
+    'w.w',
+    '.w.',
+    '.w.',
+    '.w.',
+    '.w.',
+    '.w.',
+    'w.w',
+  ], { w: '#aef0ff' });
+
+  // floating heart (ChatGPT glaze heal)
+  const heart = pat([
+    '.h.h.',
+    'hhhhh',
+    'hhhhh',
+    '.hhh.',
+    '..h..',
+  ], { h: '#ff79c6' });
 
   // scraper web shot
   const web = pat([
@@ -597,6 +618,8 @@ const SPR = (() => {
     glowPink: glowSprite(34, 'rgba(255,125,249,0.55)'),
     doc, orb, flame: [flame0, flame1], dflame: [dflame0, dflame1], emberPatch, gdOrb, halluc, turret, claudeBuddy, lightning, web,
     llama: outlined(llama, '#3ce06a', 2),
+    heart: outlined(heart, '#fff0f6', 1),
+    caret: outlined(caret, '#1b3a6b', 1),
     token, TOKEN_WORDS, CRIT_WORDS,
     bgTile: makeBgTile(),
   };

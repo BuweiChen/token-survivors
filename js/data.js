@@ -19,10 +19,10 @@ const DATA = (() => {
     },
     attention: {
       name: 'Attention Heads', icon: '\uD83D\uDC41\uFE0F', maxLv: 8,
-      desc: 'Attention is all you need. Beams lock onto the biggest threat.',
-      lvlDesc: ['+1 head', '+damage', '+1 head', '+range', '+damage', '+1 head', 'faster', 'MAX: multi-head'],
-      base: { dmg: 20, cd: 2.1, count: 1, range: 460 },
-      lvls: [{ count: 1 }, { dmg: 6 }, { count: 1 }, { range: 120 }, { dmg: 8 }, { count: 1 }, { cd: -0.4 }, { dmg: 10, count: 1 }],
+      desc: 'Attention is all you need. A wide beam sweeps the densest cluster -- it attends to where it matters.',
+      lvlDesc: ['+wider', '+damage', '+range', '+wider', '+damage', '+range', 'faster', 'MAX: full focus'],
+      base: { dmg: 12, cd: 1.7, halfW: 130, range: 820 },
+      lvls: [{ halfW: 14 }, { dmg: 4 }, { range: 80 }, { halfW: 14 }, { dmg: 5 }, { range: 80 }, { cd: -0.3 }, { dmg: 6, halfW: 16 }],
       evolvesWith: 'scalingLaws',
       evo: 'opus48',
     },
@@ -96,7 +96,7 @@ const DATA = (() => {
       base: { dmg: 14, cd: 1.25, count: 3, speed: 300, critCh: 0.22 },
       lvls: [{ count: 1 }, { dmg: 5 }, { count: 1 }, { critCh: 0.08 }, { dmg: 6 }, { count: 1 }, { critCh: 0.08 }, { dmg: 7, count: 1 }],
       evolvesWith: 'rlhf',
-      evo: 'constitutionalAI',
+      evo: 'cursor',
     },
   };
 
@@ -147,10 +147,10 @@ const DATA = (() => {
       flavor: 'Parallel tool use: spawns a SWARM of subagents that each go cook on their own.',
       announce: 'CLAUDE CODE DEPLOYED -- agent is cooking',
     },
-    constitutionalAI: {
-      name: 'Constitutional AI', icon: '\u2696\uFE0F', frontier: true,
-      flavor: 'No longer confidently wrong -- now confidently RIGHT. Shots home true; crits redeem the target and heal you.',
-      announce: 'CONSTITUTIONAL AI -- hallucinations aligned',
+    cursor: {
+      name: 'Cursor', icon: '\uD83D\uDDB1\uFE0F', frontier: true,
+      flavor: 'Stops hallucinating, starts autocompleting. Carets lock on and Tab from edit to edit, accepting suggestion after suggestion.',
+      announce: 'CURSOR DEPLOYED -- Tab, Tab, Tab',
     },
   };
 
