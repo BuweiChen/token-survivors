@@ -562,8 +562,8 @@ const UI = (() => {
     if (kind === 'win') {
       e.head.innerHTML = '\uD83C\uDFC6 AGI ACHIEVED (internally)';
       e.sub.textContent = stats.overtime
-        ? 'You defeated CLIPPY and held back the singularity for as long as flesh allows. You shipped to prod.'
-        : 'You defeated the Paperclip Maximizer. The slop has been aligned. You shipped to prod.';
+        ? 'You collapsed THE SINGULARITY and held the line for as long as flesh allows. You shipped to prod.'
+        : 'You reached AGI. The slop has been aligned. You shipped to prod.';
     } else {
       e.head.innerHTML = '\uD83D\uDC80 YOU GOT RATE LIMITED';
       e.sub.textContent = E.choice(DATA.DEATH_LINES);

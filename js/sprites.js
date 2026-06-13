@@ -426,6 +426,18 @@ const SPR = (() => {
     'wwwwww',
   ], { w: '#f0f0e8', l: '#7a8aa0' });
 
+  // Perplexity citation: a holographic blue/magenta source card (fancier doc)
+  const citation = pat([
+    '.cccccc.',
+    'cWWWWWWc',
+    'cWmmmmWc',
+    'cWWWWWWc',
+    'cWmmWWMc',
+    'cWWWWMMc',
+    'cWmmWMMc',
+    '.cccccc.',
+  ], { c: '#39d7ff', W: '#eaf6ff', m: '#7aa7d8', M: '#b347ff' });
+
   const orb = pat([
     '.cc.',
     'cCCc',
@@ -459,16 +471,20 @@ const SPR = (() => {
     'bvcvb',
     '.vcv.',
   ], { b: '#1a1f8c', v: '#5b2ed6', c: '#48d0ff' });
-  // ground residue patch (drawn scaled, additive)
+  // ground residue patch (drawn scaled, additive) -- bright violet/cyan embers
   const emberPatch = (() => {
     const c = document.createElement('canvas');
-    c.width = c.height = 32;
+    c.width = c.height = 48;
     const g = c.getContext('2d');
-    const grad = g.createRadialGradient(16, 16, 2, 16, 16, 16);
-    grad.addColorStop(0, 'rgba(90,46,214,0.9)');
-    grad.addColorStop(0.6, 'rgba(40,30,160,0.5)');
-    grad.addColorStop(1, 'rgba(20,20,80,0)');
-    g.fillStyle = grad; g.fillRect(0, 0, 32, 32);
+    const grad = g.createRadialGradient(24, 24, 2, 24, 24, 24);
+    grad.addColorStop(0, 'rgba(120,220,255,0.95)');
+    grad.addColorStop(0.35, 'rgba(123,60,255,0.8)');
+    grad.addColorStop(0.7, 'rgba(60,40,200,0.45)');
+    grad.addColorStop(1, 'rgba(30,20,90,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, 48, 48);
+    // a few bright ember flecks
+    g.fillStyle = '#bdecff';
+    for (let i = 0; i < 6; i++) { const a = i / 6 * 6.28, r = 10 + (i % 2) * 5; g.fillRect(24 + Math.cos(a) * r, 24 + Math.sin(a) * r, 2, 2); }
     return c;
   })();
 
@@ -660,7 +676,7 @@ const SPR = (() => {
     glowGold: glowSprite(34, 'rgba(255,216,77,0.55)'),
     glowCyan: glowSprite(24, 'rgba(120,230,255,0.45)'),
     glowPink: glowSprite(34, 'rgba(255,125,249,0.55)'),
-    doc, orb, flame: [flame0, flame1], dflame: [dflame0, dflame1], emberPatch, gdOrb, halluc, turret, claudeBuddy, lightning, web,
+    doc, citation, orb, flame: [flame0, flame1], dflame: [dflame0, dflame1], emberPatch, gdOrb, halluc, turret, claudeBuddy, lightning, web,
     llama: outlined(llama, '#3ce06a', 2),
     heart: outlined(heart, '#fff0f6', 1),
     caret: outlined(caret, '#1b3a6b', 1),

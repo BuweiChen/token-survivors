@@ -335,9 +335,9 @@ const WeaponSys = (() => {
       const a = baseA + (i - (n - 1) / 2) * 0.5;
       G.fireProj({
         x: G.player.x, y: G.player.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-        dmg: dmg(G, evolved ? w.s.dmg * 1.5 : w.s.dmg, w), r: 12, pierce: 9999, life: 5,
+        dmg: dmg(G, evolved ? w.s.dmg * 1.5 : w.s.dmg, w), r: evolved ? 14 : 12, pierce: 9999, life: 5,
         kind: 'boomerang', phase: 0, outT: w.s.range + (evolved ? 0.2 : 0),
-        spr: SPR.doc, spin: true, seek: evolved,
+        spr: evolved ? SPR.citation : SPR.doc, spin: true, seek: evolved,
         rehit: 0.4, onHit,
       });
     }
@@ -404,29 +404,27 @@ const WeaponSys = (() => {
         const a = Math.atan2(p.faceY, p.faceX) + E.rand(-w.s.spread, w.s.spread);
         const v = spd(G, 270) * E.rand(0.8, 1.2);
         // GROK (evolved): cold, unhinged dark-blue flame that keeps burning
-        // the enemy after the projectile is gone -- a damage-over-time.
+        // after it passes. A CRIT flame leaves a smouldering ember patch on
+        // the ground where it first lands.
+        const fcrit = evolved && critRoll(G, 0.06);
+        const emberDmg = dmg(G, w.s.dmg * 1.6, w);
+        let emberDone = false;
         G.fireProj({
           x: p.x + p.faceX * 14, y: p.y + p.faceY * 14,
           vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-          dmg: dmg(G, w.s.dmg, w), r: 11, pierce: 9999, life: range / v,
+          dmg: dmg(G, w.s.dmg, w) * (fcrit ? 2.5 : 1), crit: fcrit, r: 11, pierce: 9999, life: range / v,
           kind: 'flame', spr: (evolved ? SPR.dflame : SPR.flame)[(Math.random() * 2) | 0], rehit: 0.45,
-          burnDps: evolved ? dmg(G, w.s.dmg * 1.0, w) : 0, burnDur: 2.2, burnColor: '#5b2ed6',
+          burnDps: evolved ? dmg(G, w.s.dmg * 1.0, w) : 0, burnDur: 2.2, burnColor: '#7b3cff',
+          onHit: fcrit ? (en) => {
+            if (emberDone) return; emberDone = true;
+            G.addZone({ x: en.x, y: en.y, r: area(G, 50), life: 3.4, burnDps: emberDmg, burnColor: '#7b3cff', kind: 'ember' });
+            G.ring(en.x, en.y, area(G, 50), '#7b3cff', 0.3);
+          } : null,
         });
       }
     }
     if (evolved) {
-      // ...and it leaves burning residue on the ground (the colossus runs hot),
-      const p = G.player;
-      w.emberT = (w.emberT || 0) - dt;
-      if (w.emberT <= 0 && p.moving) {
-        w.emberT = 0.35;
-        G.addZone({
-          x: p.x - p.faceX * 20, y: p.y - p.faceY * 20,
-          r: area(G, 40), life: 2.5,
-          burnDps: dmg(G, w.s.dmg * 0.8, w), burnColor: '#5b2ed6', kind: 'ember',
-        });
-      }
-      // ...plus chaos lightning on random enemies, forever (zero chill).
+      // chaos lightning on random enemies, forever (zero chill) -- also embers
       w.boltT = (w.boltT || 0) - dt;
       if (w.boltT <= 0) {
         w.boltT = cd(G, 0.18);
@@ -434,7 +432,7 @@ const WeaponSys = (() => {
         if (e) {
           G.addBeam(e.x, e.y - 400, e.x, e.y, '#48d0ff', 4);
           G.aoe(e.x, e.y, 48, dmg(G, 35, w), { kb: 80 });
-          G.burn(e, dmg(G, w.s.dmg * 1.0, w), 2.2, '#5b2ed6');
+          G.burn(e, dmg(G, w.s.dmg * 1.0, w), 2.2, '#7b3cff');
           G.spark(e.x, e.y, '#48d0ff', 8);
           SFX.play('hit');
         }
@@ -473,9 +471,11 @@ const WeaponSys = (() => {
       const e = G.randomVisibleEnemy();
       if (!e) break;
       fired = true;
+      // falls onto the enemy from just overhead so it lands accurately, then
+      // ALWAYS AoEs (no direct-contact single hit -- see the proj loop)
       G.fireProj({
-        x: e.x + E.rand(-20, 20), y: e.y - 420, vx: 0, vy: 620,
-        dmg: dmg(G, w.s.dmg, w), r: 10, pierce: 0, life: 2,
+        x: e.x, y: e.y - 280, vx: 0, vy: 820,
+        dmg: dmg(G, w.s.dmg, w), r: 10, pierce: 0, life: 1.2,
         kind: 'fall', ty: e.y, aoeR: area(G, w.s.radius), spr: SPR.gdOrb,
       });
     }
@@ -488,11 +488,14 @@ const WeaponSys = (() => {
       const b = w.barrage[i];
       b.delay -= dt;
       if (b.delay <= 0) {
-        G.addBeam(b.x, b.y - 520, b.x, b.y, '#7baaf7', 8);
-        G.aoe(b.x, b.y, b.rr, b.dmg, { kb: 110 });
-        G.ring(b.x, b.y, b.rr * 1.1, '#7baaf7', 0.4);
-        G.spark(b.x, b.y, '#7baaf7', 12);
-        SFX.play('hit');
+        // GEMINI 3 orbital strike: wide TPU column + bright core, double ring
+        G.addBeam(b.x, b.y - 620, b.x, b.y, 'rgba(123,170,247,0.32)', 30);
+        G.addBeam(b.x, b.y - 620, b.x, b.y, '#dcebff', 6);
+        G.aoe(b.x, b.y, b.rr, b.dmg, { kb: 130 });
+        G.ring(b.x, b.y, b.rr * 1.15, '#7baaf7', 0.42);
+        G.ring(b.x, b.y, b.rr * 0.6, '#ffffff', 0.3);
+        G.spark(b.x, b.y, '#bcd8ff', 16);
+        SFX.play('laser');
         w.barrage[i] = w.barrage[w.barrage.length - 1]; w.barrage.pop();
       }
     }
@@ -555,7 +558,7 @@ const WeaponSys = (() => {
         if (a.tgt) {
           const ang = E.ang(a.x, a.y, a.tgt.x, a.tgt.y);
           a.x += Math.cos(ang) * 430 * dt; a.y += Math.sin(ang) * 430 * dt;
-          if (E.dist2(a.x, a.y, a.tgt.x, a.tgt.y) < 26 * 26) { a.state = 'mark'; a.markT = 0.5; }
+          if (E.dist2(a.x, a.y, a.tgt.x, a.tgt.y) < 26 * 26) { a.state = 'mark'; a.markT = 0.75; }
         } else { // idle near player
           a.x += (G.player.x - a.x) * dt * 3; a.y += (G.player.y - a.y) * dt * 3;
         }
@@ -567,8 +570,9 @@ const WeaponSys = (() => {
           if (a.markT <= 0) {
             // highlight vanishes -> the edit lands
             G.hitEnemy(a.tgt, d, { kb: 40 });
-            G.addText(a.tgt.x, a.tgt.y - a.tgt.r - 8, E.choice(['delete', 'backspace', 'Tab']), '#aef0ff', 13);
-            G.spark(a.tgt.x, a.tgt.y, '#aef0ff', 6);
+            G.addText(a.tgt.x, a.tgt.y - a.tgt.r - 10, E.choice(['delete', 'backspace', 'del']), '#aef0ff', 19, 1.5);
+            G.spark(a.tgt.x, a.tgt.y, '#aef0ff', 12);
+            G.ring(a.tgt.x, a.tgt.y, a.tgt.r + 14, '#aef0ff', 0.3);
             SFX.play('zap');
             a.state = 'return';
           }

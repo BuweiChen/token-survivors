@@ -256,7 +256,7 @@ const Game = (() => {
     while (G.xp >= G.xpNext) {
       G.xp -= G.xpNext;
       G.level++;
-      G.xpNext = Math.floor(5 + (G.level - 1) * 10 + Math.pow(G.level - 1, 1.9) * 2.2);
+      G.xpNext = Math.floor(4 + (G.level - 1) * 9 + Math.pow(G.level - 1, 1.9) * 2.1);
       levelQueue++;
     }
     if (levelQueue > 0 && G.state === 'run') openLevelUp();
@@ -347,14 +347,14 @@ const Game = (() => {
   // stage-appropriate non-evo weapon (lv1 ~7 DPS at 0:00, maxed ~60 DPS by
   // ~10:00) so one such weapon kills a basic enemy in roughly 2-5s at any
   // stage. Evolutions are what break this treadmill -- that's the point.
-  const BASE_HP0 = 18; // basicHpAt(0); reference for XP scaling
-  // post-Clippy "overtime": seconds elapsed since AGI; drives runaway scaling
+  const BASE_HP0 = 17.1; // basicHpAt(0); reference for XP scaling
+  // post-AGI "overtime": seconds elapsed since the final boss; runaway scaling
   function overT() { return G.overtime ? (G.time - G.overtimeStart) : 0; }
   function basicHpAt() {
     const m = G.time / 60;
-    // aggressive ramp: linear + quadratic so the mid/late game keeps biting;
-    // in overtime HP roughly doubles every 40s -> a maxed player drowns fast
-    return (20 + 24 * m + 1.0 * m * m) * 0.9 * (G.overtime ? Math.pow(2, overT() / 40) : 1);
+    // aggressive ramp: linear + quadratic so the mid/late game keeps biting
+    // (x0.855 = ~5% lower TTK than the 0.9 pass); overtime ~doubles every 40s
+    return (20 + 24 * m + 1.0 * m * m) * 0.855 * (G.overtime ? Math.pow(2, overT() / 40) : 1);
   }
   function timeDmgScale() { return (1 + (G.time / 60) * 0.13) * (G.overtime ? Math.pow(1.4, overT() / 45) : 1); }
   // the slop gets faster as the internet degrades (+24% by 15:00)
@@ -376,6 +376,7 @@ const Game = (() => {
     e.abilT = 3; e.abil2T = 8; e.telegraphT = 0; e.chargeT = 0; e.cvx = 0; e.cvy = 0; e.enraged = false;
     e.burnT = 0; e.burnDps = 0; e.burnAcc = 0; e.burnColor = '#ff7b2e'; e.logT = 0; e.cite = 0; e.stunT = 0;
     e.tungN = 0; e.tungT = 0; e.spinA = 0;
+    e.dmgAcc = 0; e.dmgCrit = false; e.dmgT = 0; // accumulated damage-number display
     e.spr = SPR.enemies[def.spr];
     G.enemies.push(e);
     if (def.lore && !seenEnemies[type] && !G.testMode) {
@@ -575,7 +576,10 @@ const Game = (() => {
       e.kbx += Math.cos(a) * kb;
       e.kby += Math.sin(a) * kb;
     }
-    if (!opts.quiet || opts.crit) addDmgText(e.x, e.y - e.r, d, opts.crit);
+    // accumulate damage so EVERY hit contributes a number, but merge rapid
+    // ticks per-enemy (flushed in the enemy loop / on death) to stay readable
+    e.dmgAcc += d;
+    if (opts.crit) e.dmgCrit = true;
     if (e.hp <= 0) killEnemy(e);
   }
 
@@ -588,6 +592,7 @@ const Game = (() => {
 
   function killEnemy(e) {
     G.kills++;
+    if (e.dmgAcc > 0) { addDmgText(e.x, e.y - e.r, e.dmgAcc, e.dmgCrit); e.dmgAcc = 0; } // show the killing blow
     spark(e.x, e.y, e.boss ? '#ffd84d' : '#8ab4ff', e.boss ? 26 : 7);
     if (Math.random() < 0.25) SFX.play('hit');
     // drops: chests come from elites ONLY (about 20 a run); bosses pay out
@@ -599,7 +604,8 @@ const Game = (() => {
     // first evo lands ~first boss, later ones come steadily, not all at once.
     const m = G.time / 60;
     const xpGrow = Math.pow(basicHpAt() / BASE_HP0, 0.35);
-    const tax = E.clamp(1.25 - m * 0.07, 0.4, 1.25);
+    // a touch more XP early so the first evolution comes sooner
+    const tax = E.clamp(1.4 - m * 0.075, 0.4, 1.4);
     // XP per kill is deliberately scarce (more enemies later compensate for
     // volume; per-level cost rises too -- see gainXp)
     let xpv = e.def.xp * xpGrow * tax * (e.elite ? 2.5 : 1);
@@ -766,13 +772,12 @@ const Game = (() => {
   }
 
   function addDmgText(x, y, d, crit) {
-    if (!crit && (G.texts.length > 60 || Math.random() < 0.45)) return;
-    if (G.texts.length > 90) return;
+    if (G.texts.length > 140) return; // hard safety cap only
     const t = textPool.get();
     t.x = x + E.rand(-8, 8); t.y = y;
     t.str = crit ? (Math.round(d) + '!! ' + E.choice(['skull', 'RATIO', 'L', 'COOKED'])) : String(Math.round(d));
     t.color = crit ? '#ffd84d' : '#ffffff';
-    t.life = t.maxLife = crit ? 1 : 0.6;
+    t.life = t.maxLife = crit ? 1 : 0.55;
     t.size = crit ? 20 : 13;
     G.texts.push(t);
   }
@@ -887,6 +892,10 @@ const Game = (() => {
     for (let i = G.projs.length - 1; i >= 0; i--) {
       const pr = G.projs[i];
       if (!WeaponSys.updateProj(G, pr, dt)) { releaseProj(i); continue; }
+      // 'fall' projectiles (Gradient Descent) deal NO direct-contact hit -- they
+      // only ever AoE on landing (handled in updateProj's impact). otherwise a
+      // mid-air clip would turn an AoE strike into a single-target poke.
+      if (pr.kind === 'fall') continue;
       const cands = G.grid.query(pr.x, pr.y, pr.r + 26);
       let dead = false;
       for (const e of cands) {
@@ -964,6 +973,11 @@ const Game = (() => {
     for (let i = 0; i < G.enemies.length; i++) {
       const e = G.enemies[i];
       if (e.flash > 0) e.flash -= dt;
+      // flush accumulated damage into a floating number (~every 0.13s)
+      if (e.dmgAcc > 0) {
+        e.dmgT -= dt;
+        if (e.dmgT <= 0) { addDmgText(e.x, e.y - e.r, e.dmgAcc, e.dmgCrit); e.dmgAcc = 0; e.dmgCrit = false; e.dmgT = 0.13; }
+      }
       // burning damage-over-time (Grok, residue patches)
       if (e.burnT > 0) {
         e.burnT -= dt;
@@ -1048,7 +1062,9 @@ const Game = (() => {
           pk.y += Math.sin(a) * 560 * dt;
         }
       }
-      if (E.dist2(pk.x, pk.y, p.x, p.y) < 34 * 34) {
+      // chests are big and don't get vacuumed, so use a generous reach
+      const rad = pk.kind === 'chest' ? 52 : 34;
+      if (E.dist2(pk.x, pk.y, p.x, p.y) < rad * rad) {
         G.pickups.splice(i, 1);
         collectPickup(pk);
         if (G.state !== 'run') break;
@@ -1142,10 +1158,10 @@ const Game = (() => {
     for (const z of G.zones) {
       const a = E.clamp(z.life / z.maxLife, 0, 1);
       if (z.burnDps) {
-        // grok ember residue: additive flickering violet pool
+        // grok ember residue: bright additive flickering violet/cyan pool
         ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = (0.35 + a * 0.45) * (0.8 + Math.sin(G.time * 18 + z.x) * 0.2);
-        const s = z.r * 2.4;
+        ctx.globalAlpha = (0.6 + a * 0.4) * (0.85 + Math.sin(G.time * 16 + z.x) * 0.15);
+        const s = z.r * 3.0;
         ctx.drawImage(SPR.emberPatch, z.x - s / 2, z.y - s / 2, s, s);
         ctx.globalCompositeOperation = 'source-over';
       } else {
@@ -1219,22 +1235,28 @@ const Game = (() => {
       if (a.kind === 'turret') {
         ctx.drawImage(SPR.turret, a.x - SPR.turret.width / 2, a.y - SPR.turret.height / 2);
       } else if (a.kind === 'llama') {
-        const s = SPR.chest; // the herd uses the model-drop box sprite
+        const s = SPR.chest, sc = 1.7; // the herd uses the model-drop box sprite, enlarged
+        const sw = s.width * sc, sh = s.height * sc;
         ctx.save();
-        ctx.translate(a.x, a.y + Math.sin(G.time * 8 + a.x) * 2); // little hop
+        ctx.translate(a.x, a.y + Math.sin(G.time * 8 + a.x) * 3); // little hop
         if ((a.fx || 0) < 0) ctx.scale(-1, 1);
-        ctx.drawImage(s, -s.width / 2, -s.height / 2);
+        ctx.drawImage(s, -sw / 2, -sh / 2, sw, sh);
         ctx.restore();
       } else if (a.kind === 'cursor') {
-        // selection highlight over the marked enemy, then the blinking caret
+        // selection highlight over the marked enemy (pulses, fills as it
+        // counts down), then the blinking caret
         if (a.state === 'mark' && a.tgt && a.tgt.hp > 0) {
-          const e = a.tgt, hw = e.r + 8;
-          ctx.fillStyle = 'rgba(120,190,255,0.32)';
+          const e = a.tgt, hw = e.r + 14;
+          const prog = 1 - E.clamp(a.markT / 0.75, 0, 1);
+          ctx.fillStyle = 'rgba(120,200,255,' + (0.28 + prog * 0.4) + ')';
           ctx.fillRect(e.x - hw, e.y - hw, hw * 2, hw * 2);
-          ctx.strokeStyle = '#aef0ff'; ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#aef0ff'; ctx.lineWidth = 2.5;
           ctx.strokeRect(e.x - hw, e.y - hw, hw * 2, hw * 2);
         }
-        if ((a.blink * 3 | 0) % 2 === 0) ctx.drawImage(SPR.caret, a.x - SPR.caret.width / 2, a.y - SPR.caret.height / 2);
+        if ((a.blink * 3 | 0) % 2 === 0) {
+          const s = SPR.caret, sc = 1.6;
+          ctx.drawImage(s, a.x - s.width * sc / 2, a.y - s.height * sc / 2, s.width * sc, s.height * sc);
+        }
       } else {
         ctx.save();
         ctx.translate(a.x, a.y);

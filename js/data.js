@@ -75,8 +75,8 @@ const DATA = (() => {
       name: 'Gradient Descent', icon: '\u2699\uFE0F', maxLv: 8,
       desc: 'The loss must go down. The loss is them. Strikes from above.',
       lvlDesc: ['+1 step', '+damage', '+blast area', '+1 step', '+damage', '+blast area', 'faster epochs', 'MAX: converged'],
-      base: { dmg: 32, cd: 1.6, count: 2, radius: 78 },
-      lvls: [{ count: 1 }, { dmg: 10 }, { radius: 14 }, { count: 1 }, { dmg: 12 }, { radius: 16 }, { cd: -0.3 }, { dmg: 14, count: 1 }],
+      base: { dmg: 40, cd: 1.5, count: 2, radius: 88 },
+      lvls: [{ count: 1 }, { dmg: 12 }, { radius: 14 }, { count: 1 }, { dmg: 14 }, { radius: 16 }, { cd: -0.3 }, { dmg: 16, count: 1 }],
       evolvesWith: 'lora',
       evo: 'gemini',
     },
@@ -213,12 +213,12 @@ const DATA = (() => {
       lore: 'MSRP is a myth. It scalped ITSELF.', tip: 'hoards compute. drops a MODEL DROP.' },
     scraperBoss: { name: 'THE SCRAPER', hp: 105, dmg: 28, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
       lore: 'Your posts? Training data. Your art? Training data. Your HP? Training data.', tip: 'DASHES at you every few seconds' },
-    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 240, dmg: 34, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
-      lore: 'It looks like you\'re trying to survive. It would like to turn you into office supplies.', tip: 'summons paperclip interns. defeat it to reach AGI... then survive.' },
+    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 120, dmg: 32, spd: 52, r: 40, xp: 50, spr: 'clippy', boss: true,
+      lore: 'It looks like you\'re trying to survive. It would like to turn you into office supplies.', tip: 'summons paperclip interns and enrages at low HP.' },
     tungBoss:    { name: 'TUNG TUNG TUNG SAHUR', hp: 70, dmg: 24, spd: 50, r: 38, xp: 25, spr: 'tungBoss', boss: true,
       lore: 'A sentient wooden bat that bangs out the dawn. tung. tung. tung. you should have woken up.', tip: 'TUNG combo: 3 rhythmic shockwaves. read the beat.' },
-    singularityBoss: { name: 'THE SINGULARITY', hp: 95, dmg: 20, spd: 16, r: 46, xp: 50, spr: 'singularityBoss', boss: true,
-      lore: 'It does not chase. It does not need to. All compute bends toward it.', tip: 'pulls you IN and sprays a spiral of shards. keep your distance.' },
+    singularityBoss: { name: 'THE SINGULARITY', hp: 175, dmg: 28, spd: 16, r: 48, xp: 100, spr: 'singularityBoss', boss: true, final: true,
+      lore: 'It does not chase. It does not need to. All compute -- and all flesh -- bends toward it. This is what you were building.', tip: 'pulls you IN and sprays a spiral of shards. the last boss. beat it to reach AGI.' },
   };
 
   // ---------------- WAVE SCHEDULE (per minute, 15 min run) ----------------
@@ -245,8 +245,8 @@ const DATA = (() => {
     { t: 300, type: 'gpuBoss', title: 'GPU SHORTAGE', sub: 'OUT OF STOCK EVERYWHERE' },
     { t: 450, type: 'tungBoss', title: 'TUNG TUNG TUNG SAHUR', sub: 'tung. tung. tung. WAKE UP.' },
     { t: 600, type: 'scraperBoss', title: 'THE SCRAPER', sub: 'YOUR DATA IS ITS DATA' },
-    { t: 750, type: 'singularityBoss', title: 'THE SINGULARITY', sub: 'it pulls everything in. even you.' },
-    { t: 900, type: 'clippy', title: 'CLIPPY', sub: '"It looks like you\'re trying to survive. Would you like help with that?"' },
+    { t: 750, type: 'clippy', title: 'CLIPPY', sub: '"It looks like you\'re trying to survive. Would you like help with that?"' },
+    { t: 900, type: 'singularityBoss', title: 'THE SINGULARITY', sub: 'all compute bends toward it. even you. THE FINAL BOSS.' },
   ];
 
   const BESTIARY_HEADERS = ['NEW OPP DETECTED', 'NEW SLOP JUST DROPPED', 'BESTIARY UPDATED', 'LOBBY HAS A NEW GUY', 'UNKNOWN ENTITY (known now)'];

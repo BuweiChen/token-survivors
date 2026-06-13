@@ -67,12 +67,12 @@ in the run (enemy `hp` in data.js is a multiplier of that curve). Enemies
 also creep faster (+18% by 15:00) and hit harder over time. Evolutions are
 what break the treadmill.
 Bosses: GPU Shortage (5:00), Tung Tung Tung Sahur (7:30, a wooden bat that
-slams rhythmic shockwaves), The Scraper (10:00), The Singularity (12:30, a
-vortex that pulls you in and sprays a spiral of shards), and at 15:00 --
-CLIPPY, the Paperclip Maximizer. Each boss/miniboss also drags in a surge of
-extra enemies.
+slams rhythmic shockwaves), The Scraper (10:00), Clippy (12:30, the Paperclip
+Maximizer), and at 15:00 the FINAL boss -- The Singularity, a vortex that
+pulls you in and sprays a spiral of shards. Each boss/miniboss also drags in
+a surge of extra enemies.
 
-Defeating Clippy is "winning" -- but instead of ending, it triggers OVERTIME:
+Defeating the Singularity (AGI) is "winning" -- but instead of ending, it triggers OVERTIME:
 scaling goes vertical and even a fully-evolved player drowns within a few
 minutes. Dying in overtime still shows the win screen, with your survival
 time, your best, and a cherry if it's a new record.
