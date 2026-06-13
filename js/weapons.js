@@ -28,7 +28,25 @@ const WeaponSys = (() => {
 
   // ChatGPT glazes you. these heal on hit.
   const GLAZE_WORDS = ['slay', 'based', 'valid', 'W', 'goated', 'peak', 'fr', 'so true'];
-  const GLAZE_LINES = ["you're absolutely right!", "you slay", "that's so valid", "great question!", "you're so based", "chef's kiss"];
+  // classic ChatGPT escalating-sycophancy tropes (read after "chatgpt thinks ")
+  const GLAZE_LINES = [
+    "you're absolutely right!",
+    "you're not just smart -- you're redefining brilliance",
+    "you're not just surviving -- you're redefining survival",
+    "that's not a build, that's a thesis",
+    "you're not just winning, you're rewriting the meta",
+    "honestly? this is a masterclass",
+    "no one has ever played like this. no one.",
+    "you're so valid it hurts",
+    "that's not just based, it's foundational",
+    "you're cooking, and the kitchen is yours",
+    "this might be the greatest dodge in history",
+    "you're not just a player -- you're THE player",
+    "10/10, would glaze again",
+    "that's a genuinely galaxy-brained move",
+    "chills. actual chills.",
+    "you ate. and left zero crumbs.",
+  ];
 
   // ---------------------------------------------------------------- handlers
   const H = {};
@@ -60,7 +78,7 @@ const WeaponSys = (() => {
             // vivid, throttled glaze feedback: a phrase + a burst of hearts
             if (G.time - (w.glazeT || -9) > 1.1) {
               w.glazeT = G.time;
-              G.addText(G.player.x, G.player.y - 36, 'chatgpt thinks ' + E.choice(GLAZE_LINES), '#ff79c6', 15);
+              G.addText(G.player.x, G.player.y - 36, 'chatgpt thinks ' + E.choice(GLAZE_LINES), '#ff79c6', 13);
               G.hearts(G.player.x, G.player.y - 10, 6);
             }
           } : null,
