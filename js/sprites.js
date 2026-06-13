@@ -542,13 +542,15 @@ const SPR = (() => {
     'l.ll.ll...',
   ], { b: '#f3e3c0', e: '#1b1e2b', l: '#b89a66' });
 
-  // llama spit glob
+  // llama spit glob (chunky + bright so it reads in the chaos)
   const spit = pat([
-    '.gg.',
-    'gGGg',
-    'gGGg',
-    '.gg.',
-  ], { g: '#3ca85a', G: '#9bf0ad' });
+    '..gg..',
+    '.gGGg.',
+    'gGWWGg',
+    'gGWWGg',
+    '.gGGg.',
+    '..gg..',
+  ], { g: '#2e8f48', G: '#5fe089', W: '#d8ffe6' });
 
   // Cursor caret: a text-editor I-beam
   const caret = pat([
@@ -680,7 +682,7 @@ const SPR = (() => {
     llama: outlined(llama, '#3ce06a', 2),
     heart: outlined(heart, '#fff0f6', 1),
     caret: outlined(caret, '#1b3a6b', 1),
-    spit,
+    spit: outlined(spit, '#eafff0', 1),
     token, TOKEN_WORDS, CRIT_WORDS,
     bgTile: makeBgTile(),
   };

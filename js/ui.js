@@ -156,7 +156,7 @@ const UI = (() => {
     }
     h('div', 'ttitle', title, card);
     if (sub) h('div', 'tsub', sub, card);
-    const life = kind === 'boss' ? 3000 : 1800;
+    const life = kind === 'boss' ? 3000 : 2800;
     setTimeout(() => card.classList.add('out'), life - 400);
     setTimeout(() => card.remove(), life);
   }

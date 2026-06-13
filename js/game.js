@@ -15,9 +15,11 @@ const Game = (() => {
     cam: { x: 0, y: 0, sx: 0, sy: 0, shake: 0 },
     frameMark: 0,
     cardFreezeT: 0, // boss title card briefly freezes the sim
-    overtime: false, overtimeStart: 0, clippyDefeated: false, // post-Clippy endless
+    overtime: false, overtimeStart: 0, clippyDefeated: false, // post-AGI endless
+    zoom: 1, // world render scale (mobile zooms out for breathing room)
     testMode: false,
   };
+  const IS_TOUCH = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
 
   let enemyId = 1;
   let spawnAcc = 0, eliteT = 28, contactT = 0, sepFrame = 0, spawnSurge = 0;
@@ -347,16 +349,18 @@ const Game = (() => {
   // stage-appropriate non-evo weapon (lv1 ~7 DPS at 0:00, maxed ~60 DPS by
   // ~10:00) so one such weapon kills a basic enemy in roughly 2-5s at any
   // stage. Evolutions are what break this treadmill -- that's the point.
-  const BASE_HP0 = 17.1; // basicHpAt(0); reference for XP scaling
+  const BASE_HP0 = 15.4; // basicHpAt(0); reference for XP scaling
   // post-AGI "overtime": seconds elapsed since the final boss; runaway scaling
   function overT() { return G.overtime ? (G.time - G.overtimeStart) : 0; }
   function basicHpAt() {
     const m = G.time / 60;
-    // aggressive ramp: linear + quadratic so the mid/late game keeps biting
-    // (x0.855 = ~5% lower TTK than the 0.9 pass); overtime ~doubles every 40s
-    return (20 + 24 * m + 1.0 * m * m) * 0.855 * (G.overtime ? Math.pow(2, overT() / 40) : 1);
+    // linear + quadratic ramp; x0.77 = another ~10% lower TTK across the run.
+    // overtime ~doubles every 40s.
+    return (20 + 24 * m + 1.0 * m * m) * 0.77 * (G.overtime ? Math.pow(2, overT() / 40) : 1);
   }
-  function timeDmgScale() { return (1 + (G.time / 60) * 0.13) * (G.overtime ? Math.pow(1.4, overT() / 45) : 1); }
+  // damage scales much more gently now: ~+75% by 15:00 (was +195%), so the
+  // final boss is a ~3-hit threat for a no-armor player rather than a one-shot
+  function timeDmgScale() { return (1 + (G.time / 60) * 0.05) * (G.overtime ? Math.pow(1.4, overT() / 45) : 1); }
   // the slop gets faster as the internet degrades (+24% by 15:00)
   function timeSpeedScale() { return 1 + Math.min(G.time / 60, 15) * 0.016; }
 
@@ -389,7 +393,7 @@ const Game = (() => {
 
   function spawnPosAroundPlayer() {
     const a = E.rand(E.TAU);
-    const R = Math.hypot(W, H) / 2 + 70;
+    const R = Math.hypot(W, H) / (2 * G.zoom) + 70; // just outside the visible (zoomed) area
     return [G.player.x + Math.cos(a) * R, G.player.y + Math.sin(a) * R];
   }
 
@@ -546,7 +550,7 @@ const Game = (() => {
         e.spinA = (e.spinA || 0) + 0.55;
         for (let k = 0; k < 2; k++) {
           const a = e.spinA + k * Math.PI;
-          fireEnemyProj(e.x, e.y, Math.cos(a) * 155, Math.sin(a) * 155, e.dmg * 0.55, 'shard');
+          fireEnemyProj(e.x, e.y, Math.cos(a) * 155, Math.sin(a) * 155, e.dmg * 0.4, 'shard');
         }
       }
       return sp * 0.45; // it barely moves; the pull does the work
@@ -827,9 +831,10 @@ const Game = (() => {
 
   function randomVisibleEnemy() {
     if (!G.enemies.length) return null;
+    const hw = W / (2 * G.zoom) + 40, hh = H / (2 * G.zoom) + 40;
     for (let tries = 0; tries < 6; tries++) {
       const e = E.choice(G.enemies);
-      if (Math.abs(e.x - G.player.x) < W / 2 + 40 && Math.abs(e.y - G.player.y) < H / 2 + 40) return e;
+      if (Math.abs(e.x - G.player.x) < hw && Math.abs(e.y - G.player.y) < hh) return e;
     }
     return null;
   }
@@ -1139,20 +1144,25 @@ const Game = (() => {
   // ---------- render ----------
   function render() {
     if (!ctx) return;
-    const camX = G.cam.x + G.cam.sx, camY = G.cam.y + G.cam.sy;
-    // bg tiles
-    const ts = 256;
-    const ox = -((camX % ts) + ts) % ts, oy = -((camY % ts) + ts) % ts;
-    for (let x = ox - ts; x < W + ts; x += ts)
-      for (let y = oy - ts; y < H + ts; y += ts)
-        ctx.drawImage(SPR.bgTile, x, y);
-
-    if (G.state === 'title') return;
     const p = G.player;
-    if (!p) return;
+    const z = G.zoom;
+    // camera focus (world), with screen-space shake folded back through zoom
+    const fx = (p ? p.x : (G.cam.x + W / 2)) + G.cam.sx / z;
+    const fy = (p ? p.y : (G.cam.y + H / 2)) + G.cam.sy / z;
 
     ctx.save();
-    ctx.translate(-camX, -camY);
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(z, z);
+    ctx.translate(-fx, -fy);
+
+    // bg tiles across the visible (zoomed) world rect
+    const ts = 256;
+    const halfW = W / (2 * z) + ts, halfH = H / (2 * z) + ts;
+    const x0 = Math.floor((fx - halfW) / ts) * ts, x1 = fx + halfW;
+    const y0 = Math.floor((fy - halfH) / ts) * ts, y1 = fy + halfH;
+    for (let x = x0; x < x1; x += ts) for (let y = y0; y < y1; y += ts) ctx.drawImage(SPR.bgTile, x, y);
+
+    if (G.state === 'title' || !p) { ctx.restore(); return; }
 
     // zones
     for (const z of G.zones) {
@@ -1235,7 +1245,7 @@ const Game = (() => {
       if (a.kind === 'turret') {
         ctx.drawImage(SPR.turret, a.x - SPR.turret.width / 2, a.y - SPR.turret.height / 2);
       } else if (a.kind === 'llama') {
-        const s = SPR.chest, sc = 1.7; // the herd uses the model-drop box sprite, enlarged
+        const s = SPR.llama, sc = 1.6; // the herd: the friendly llama sprite, enlarged
         const sw = s.width * sc, sh = s.height * sc;
         ctx.save();
         ctx.translate(a.x, a.y + Math.sin(G.time * 8 + a.x) * 3); // little hop
@@ -1496,6 +1506,8 @@ const Game = (() => {
     ctx = cv.getContext('2d');
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.imageSmoothingEnabled = false;
+    // mobile/small screens zoom out so there's room between enemies
+    G.zoom = (IS_TOUCH || W < 760) ? 0.62 : 1;
   }
 
   // ---------- meta shop ----------

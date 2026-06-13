@@ -217,7 +217,7 @@ const DATA = (() => {
       lore: 'It looks like you\'re trying to survive. It would like to turn you into office supplies.', tip: 'summons paperclip interns and enrages at low HP.' },
     tungBoss:    { name: 'TUNG TUNG TUNG SAHUR', hp: 70, dmg: 24, spd: 50, r: 38, xp: 25, spr: 'tungBoss', boss: true,
       lore: 'A sentient wooden bat that bangs out the dawn. tung. tung. tung. you should have woken up.', tip: 'TUNG combo: 3 rhythmic shockwaves. read the beat.' },
-    singularityBoss: { name: 'THE SINGULARITY', hp: 175, dmg: 28, spd: 16, r: 48, xp: 100, spr: 'singularityBoss', boss: true, final: true,
+    singularityBoss: { name: 'THE SINGULARITY', hp: 175, dmg: 18, spd: 16, r: 48, xp: 100, spr: 'singularityBoss', boss: true, final: true,
       lore: 'It does not chase. It does not need to. All compute -- and all flesh -- bends toward it. This is what you were building.', tip: 'pulls you IN and sprays a spiral of shards. the last boss. beat it to reach AGI.' },
   };
 

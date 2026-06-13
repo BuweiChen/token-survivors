@@ -583,26 +583,33 @@ const WeaponSys = (() => {
         if (E.dist2(a.x, a.y, G.player.x, G.player.y) < 30 * 30) { a.state = 'seek'; a.tgt = null; }
       }
     } else if (a.kind === 'llama') {
-      // a freed open-weights fork: roams near the player and SPITS at enemies;
-      // trots home if it strays too far. persistent (life Infinity).
+      // a freed open-weights fork: roams and SPITS at enemies freely. It can
+      // wander off, but only for so long -- after a few seconds out of range
+      // it trots back to the player, then resumes. persistent (life Infinity).
       a.cd -= dt;
-      const far = E.dist2(a.x, a.y, G.player.x, G.player.y) > 300 * 300;
-      const e = far ? null : G.nearestEnemy(a.x, a.y, 430);
-      if (far) {
+      const distP = Math.hypot(a.x - G.player.x, a.y - G.player.y);
+      a.awayT = distP > 260 ? (a.awayT || 0) + dt : 0;
+      if (a.awayT > 3.5) a.returning = true;
+      if (a.returning && distP < 120) { a.returning = false; a.awayT = 0; }
+      if (a.returning) {
         const ang = E.ang(a.x, a.y, G.player.x, G.player.y);
         a.fx = Math.cos(ang);
-        a.x += Math.cos(ang) * 230 * dt; a.y += Math.sin(ang) * 230 * dt;
-      } else if (e) {
-        a.fx = e.x - a.x;
-        const dist = Math.hypot(e.x - a.x, e.y - a.y);
-        if (dist > 210) { const ang = E.ang(a.x, a.y, e.x, e.y); a.x += Math.cos(ang) * 120 * dt; a.y += Math.sin(ang) * 120 * dt; }
-        if (a.cd <= 0) {
-          a.cd = 0.7 * G.P.cooldown;
-          const ang = E.ang(a.x, a.y, e.x, e.y), v = spd(G, 370);
-          G.fireProj({ x: a.x, y: a.y - 6, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, dmg: dmg(G, a.w.s.dmg * 1.7, a.w), r: 7, pierce: 1, life: 1.4, kind: 'straight', spr: SPR.spit, rot: ang });
-        }
+        a.x += Math.cos(ang) * 270 * dt; a.y += Math.sin(ang) * 270 * dt;
       } else {
-        a.x += (G.player.x - a.x) * dt * 1.5; a.y += (G.player.y - a.y) * dt * 1.5;
+        const e = G.nearestEnemy(a.x, a.y, 470);
+        if (e) {
+          a.fx = e.x - a.x;
+          const dist = Math.hypot(e.x - a.x, e.y - a.y);
+          if (dist > 150) { const ang = E.ang(a.x, a.y, e.x, e.y); a.x += Math.cos(ang) * 150 * dt; a.y += Math.sin(ang) * 150 * dt; }
+          if (a.cd <= 0) {
+            a.cd = 0.6 * G.P.cooldown;
+            const ang = E.ang(a.x, a.y, e.x, e.y), v = spd(G, 400);
+            G.fireProj({ x: a.x, y: a.y - 8, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, dmg: dmg(G, a.w.s.dmg * 1.9, a.w), r: 10, pierce: 1, life: 1.6, kind: 'straight', spr: SPR.spit, rot: ang });
+            G.spark(a.x, a.y - 8, '#9bf0ad', 2);
+          }
+        } else {
+          a.x += (G.player.x - a.x) * dt * 1.5; a.y += (G.player.y - a.y) * dt * 1.5;
+        }
       }
     } else if (a.kind === 'claude') {
       // agentic behavior: chase nearest enemy, spin-to-win
