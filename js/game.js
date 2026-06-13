@@ -10,10 +10,11 @@ const Game = (() => {
     state: 'title', // title | run | levelup | chest | pause | over | win
     time: 0, kills: 0, coins: 0, level: 1, xp: 0, xpNext: 6,
     player: null, P: null,
-    enemies: [], projs: [], eprojs: [], gems: [], pickups: [], parts: [], texts: [], beams: [], zones: [], agents: [],
+    enemies: [], projs: [], eprojs: [], gems: [], pickups: [], parts: [], texts: [], beams: [], zones: [], rings: [], agents: [],
     grid: new E.Grid(96),
     cam: { x: 0, y: 0, sx: 0, sy: 0, shake: 0 },
     frameMark: 0,
+    cardFreezeT: 0, // boss title card briefly freezes the sim
     testMode: false,
   };
 
@@ -114,7 +115,7 @@ const Game = (() => {
       else if (def.stat === 'cooldown') P.cooldown *= 1 + def.per * lv;
       else P[def.stat] += def.per * lv;
     }
-    if (buffT > 0) { P.might *= 2; P.cooldown *= 0.55; }
+    if (buffT > 0) { P.might *= 2.5; P.cooldown *= 0.5; }
     P.cooldown = Math.max(0.25, P.cooldown);
     G.P = P;
   }
@@ -124,7 +125,8 @@ const Game = (() => {
     G.state = 'run';
     G.time = 0; G.kills = 0; G.coins = 0; G.level = 1; G.xp = 0; G.xpNext = 6;
     G.enemies.length = 0; G.projs.length = 0; G.eprojs.length = 0; G.gems.length = 0; G.pickups.length = 0;
-    G.parts.length = 0; G.texts.length = 0; G.beams.length = 0; G.zones.length = 0; G.agents.length = 0;
+    G.parts.length = 0; G.texts.length = 0; G.beams.length = 0; G.zones.length = 0; G.rings.length = 0; G.agents.length = 0;
+    G.cardFreezeT = 0;
     G.player = newPlayer();
     spawnAcc = 0; eliteT = 28; contactT = 0; levelQueue = 0;
     bossesSpawned = []; buffT = 0;
@@ -273,6 +275,44 @@ const Game = (() => {
     return out;
   }
 
+  // a chest rolls a count of upgrade levels: base EV ~1.5, capped at 5,
+  // exponentially rarer for more, luck pushes it up. Levels go into weapons
+  // and passives we ALREADY own first; a brand-new weapon/passive only
+  // appears once everything owned is maxed or the roll outgrows the levels
+  // our owned kit can still absorb.
+  function rollChestUpgrades() {
+    const p = G.player;
+    const q = E.clamp(0.33 + (G.P.luck - 1) * 0.25, 0, 0.85);
+    let n = 1;
+    while (n < 5 && Math.random() < q) n++;
+    // working copies so several rolls resolve correctly within one chest
+    const wlv = {}; for (const w of p.weapons) if (!w.evolved) wlv[w.id] = w.lv;
+    const plv = {}; for (const id in p.passives) plv[id] = p.passives[id];
+    let nW = p.weapons.length, nP = Object.keys(p.passives).length;
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const owned = [];
+      for (const id in wlv) if (wlv[id] < DATA.WEAPONS[id].maxLv) owned.push({ type: 'weapon', id });
+      for (const id in plv) if (plv[id] < DATA.PASSIVES[id].maxLv) owned.push({ type: 'passive', id });
+      let pick = null;
+      if (owned.length) {
+        pick = E.choice(owned);
+      } else {
+        const fresh = [];
+        if (nW < DATA.MAX_WEAPONS) for (const id in DATA.WEAPONS)
+          if (!(id in wlv) && !p.weapons.some(w => w.id === id)) fresh.push({ type: 'weapon', id, isNew: true });
+        if (nP < DATA.MAX_PASSIVES) for (const id in DATA.PASSIVES)
+          if (!(id in plv)) fresh.push({ type: 'passive', id, isNew: true });
+        if (fresh.length) pick = E.choice(fresh);
+      }
+      if (!pick) break; // nothing left to give
+      out.push(pick);
+      if (pick.type === 'weapon') { if (pick.isNew) nW++; wlv[pick.id] = (wlv[pick.id] || 0) + 1; }
+      else { if (pick.isNew) nP++; plv[pick.id] = (plv[pick.id] || 0) + 1; }
+    }
+    return out;
+  }
+
   function openChest() {
     const cands = evolutionCandidates();
     const result = { coins: E.randi(4, 10) };
@@ -285,16 +325,12 @@ const Game = (() => {
       SFX.play('evolve');
       G.shake(8);
     } else {
-      // no evolution ready: a chest grants exactly one upgrade level
-      result.upgrades = [];
-      const pool = upgradeChoicePool();
-      if (!pool.length) { result.coins += 10; }
-      else {
-        const c = E.choice(pool);
-        applyChoice(c);
-        result.upgrades.push(c);
-      }
-      SFX.play('chest');
+      result.upgrades = rollChestUpgrades();
+      if (!result.upgrades.length) result.coins += 10;
+      else for (const c of result.upgrades) applyChoice(c);
+      const big = result.upgrades.length;
+      SFX.play(big >= 3 ? 'evolve' : 'chest');
+      if (big >= 3) G.shake(4 + big * 2);
     }
     G.coins += result.coins;
     UI.dirtyIcons();
@@ -308,9 +344,11 @@ const Game = (() => {
   // stage-appropriate non-evo weapon (lv1 ~7 DPS at 0:00, maxed ~60 DPS by
   // ~10:00) so one such weapon kills a basic enemy in roughly 2-5s at any
   // stage. Evolutions are what break this treadmill -- that's the point.
+  const BASE_HP0 = 18.75; // basicHpAt(0); reference for XP scaling
   function basicHpAt() {
     const m = G.time / 60;
-    return 25 + 195 * Math.min(m / 10, 1) + 4 * Math.max(0, m - 10);
+    // x0.75 vs the original curve -> ~25% lower TTK at every stage
+    return (25 + 195 * Math.min(m / 10, 1) + 4 * Math.max(0, m - 10)) * 0.75;
   }
   function timeDmgScale() { return 1 + (G.time / 60) * 0.09; }
   // the slop gets faster as the internet degrades (mild: +18% by 15:00)
@@ -386,6 +424,7 @@ const Game = (() => {
         UI.titleCard(b.title, b.sub, 'boss');
         SFX.play('boss');
         G.shake(10);
+        G.cardFreezeT = 2.0; // hold the slam; the world holds its breath
       }
     }
     // clippy summons minions
@@ -507,7 +546,11 @@ const Game = (() => {
     if (Math.random() < 0.25) SFX.play('hit');
     // drops: chests come from elites ONLY (about 20 a run); bosses pay out
     // a frontier model card + credits instead
-    dropGem(e.x, e.y, (e.elite ? 25 : e.def.xp) * 2); // x2: kills are slower now
+    // XP scales sublinearly with enemy toughness so under-leveled players
+    // can still climb out, but late levels still cost more than early ones
+    const xpGrow = Math.pow(basicHpAt() / BASE_HP0, 0.6);
+    let xpv = e.def.xp * xpGrow * 2 * (e.elite ? 4 : 1);
+    dropGem(e.x, e.y, Math.max(1, Math.round(xpv)));
     if (e.boss) {
       G.coins += 25;
       G.shake(12);
@@ -515,12 +558,14 @@ const Game = (() => {
       dropPickup(e.x - 24, e.y, 'modelcard');
     } else if (e.elite) {
       if (e.dropsChest) dropPickup(e.x + 20, e.y, 'chest');
-      if (Math.random() < 0.03 + (G.P.luck - 1) * 0.06) dropPickup(e.x - 20, e.y, 'modelcard');
+      if (Math.random() < 0.09 + (G.P.luck - 1) * 0.12) dropPickup(e.x - 20, e.y, 'modelcard');
     } else {
       const r = Math.random();
-      if (r < 0.012) dropPickup(e.x, e.y, 'coin');
-      else if (r < 0.014) dropPickup(e.x, e.y, E.choice(['coffee', 'magnet', 'bomb', 'vpn']));
-      else if (r < 0.017) dropPickup(e.x, e.y, 'cookie'); // rare crumb of healing
+      if (r < 0.024) dropPickup(e.x, e.y, 'coin');                                  // credits
+      else if (r < 0.048) dropPickup(e.x, e.y, E.choice(['magnet', 'bomb', 'vpn'])); // utility, much more common
+      else if (r < 0.0488) dropPickup(e.x, e.y, 'modelcard');                       // rare frontier model
+      else if (r < 0.0518) dropPickup(e.x, e.y, 'cookie');                          // rare crumb of healing
+      else if (r < 0.0525) dropPickup(e.x, e.y, 'coffee');                          // rarer bigger heal
     }
     if (e.def.splits && !e.mini) {
       for (let i = 0; i < 2; i++) spawnEnemy('slopMini', e.x + E.rand(-14, 14), e.y + E.rand(-14, 14), false);
@@ -582,13 +627,13 @@ const Game = (() => {
       case 'coffee': p.hp = Math.min(G.P.maxhp, p.hp + 30); addText(p.x, p.y - 30, '+30 HP', '#54ff8e'); SFX.play('pickup'); break;
       case 'cookie': p.hp = Math.min(G.P.maxhp, p.hp + 10); addText(p.x, p.y - 30, 'cookie accepted (+10 HP)', '#d9a45c'); SFX.play('pickup'); break;
       case 'magnet': for (const g of G.gems) g.vac = true; addText(p.x, p.y - 30, 'DATA HOOVERED', '#39d7ff'); SFX.play('pickup'); break;
-      case 'bomb': aoe(p.x, p.y, 9999, 300 * G.P.might, { kb: 250 }); G.shake(10); addText(p.x, p.y - 30, 'sudo rm -rf ./slop', '#ff5d5d'); SFX.play('explode'); break;
-      case 'vpn': p.invulnT = 5; addText(p.x, p.y - 30, 'VPN ON (untouchable)', '#aee3ff'); SFX.play('pickup'); break;
+      case 'bomb': aoe(p.x, p.y, 9999, 600 * G.P.might, { kb: 250 }); G.shake(10); addText(p.x, p.y - 30, 'sudo rm -rf ./slop', '#ff5d5d'); SFX.play('explode'); break;
+      case 'vpn': p.invulnT = 8; addText(p.x, p.y - 30, 'VPN ON (untouchable)', '#aee3ff'); SFX.play('pickup'); break;
       case 'coin': { const c = E.randi(2, 5); G.coins += c; addText(p.x, p.y - 30, '+' + c + ' credits', '#37e07a'); SFX.play('coin'); break; }
       case 'modelcard': {
-        buffT = 10;
+        buffT = 20;
         buffName = E.choice(DATA.FRONTIER_CARDS);
-        UI.banner('FRONTIER MODEL DEPLOYED: ' + buffName + ' (10s of pure SOTA)');
+        UI.banner('FRONTIER MODEL DEPLOYED: ' + buffName + ' (20s of pure SOTA)');
         SFX.play('evolve');
         G.shake(6);
         break;
@@ -612,6 +657,12 @@ const Game = (() => {
       pt.color = color; pt.size = E.rand(2, 5);
       G.parts.push(pt);
     }
+  }
+
+  // expanding shockwave ring (purely visual)
+  function ring(x, y, r, color, life) {
+    if (G.rings.length > 40) return;
+    G.rings.push({ x, y, r0: r * 0.25, r, life: life || 0.4, maxLife: life || 0.4, color });
   }
 
   function addText(x, y, str, color, size) {
@@ -688,6 +739,13 @@ const Game = (() => {
 
   // ---------- update ----------
   function update(dt) {
+    // boss title card: freeze the whole sim so the slam lands, then resume
+    if (G.cardFreezeT > 0) {
+      G.cardFreezeT -= dt;
+      G.cam.x = G.player.x - W / 2; G.cam.y = G.player.y - H / 2;
+      UI.updateHud(G);
+      return;
+    }
     G.time += dt;
     G.frameMark++;
     const p = G.player;
@@ -900,6 +958,13 @@ const Game = (() => {
       if (b.life <= 0) G.beams.splice(i, 1);
     }
 
+    // shockwave rings
+    for (let i = G.rings.length - 1; i >= 0; i--) {
+      const rg = G.rings[i];
+      rg.life -= dt;
+      if (rg.life <= 0) { G.rings[i] = G.rings[G.rings.length - 1]; G.rings.pop(); }
+    }
+
     // camera
     G.cam.x = p.x - W / 2;
     G.cam.y = p.y - H / 2;
@@ -1107,6 +1172,20 @@ const Game = (() => {
       ctx.drawImage(s, -s.width / 2, -s.height / 2);
       ctx.restore();
     }
+
+    // shockwave rings (expanding, fading)
+    for (const rg of G.rings) {
+      const f = 1 - rg.life / rg.maxLife;
+      const rad = rg.r0 + (rg.r - rg.r0) * f;
+      ctx.globalAlpha = (1 - f) * 0.85;
+      ctx.strokeStyle = rg.color;
+      ctx.lineWidth = 7 * (1 - f) + 1.5;
+      ctx.beginPath(); ctx.arc(rg.x, rg.y, rad, 0, E.TAU); ctx.stroke();
+      ctx.globalAlpha = (1 - f) * 0.18;
+      ctx.fillStyle = rg.color;
+      ctx.beginPath(); ctx.arc(rg.x, rg.y, rad, 0, E.TAU); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
 
     // beams
     for (const b of G.beams) {
@@ -1316,7 +1395,7 @@ const Game = (() => {
     UI.init({
       startRun, quitToTitle, buyMeta, togglePause, setAutoPick,
       getBank: () => bank, getBest: () => bestTime, getMeta: () => metaRanks,
-      getAutoPick: () => autoPick,
+      getAutoPick: () => autoPick, getSeen: () => seenEnemies,
       resume: () => { G.state = 'run'; SFX.resumeAll(); },
     });
     // tab closed / backgrounded mid-run: bank what was earned so far
@@ -1327,6 +1406,11 @@ const Game = (() => {
     requestAnimationFrame(loop);
     if (location.search.includes('test=1')) setTimeout(smokeTest, 100);
     if (location.search.includes('demo=1')) setTimeout(demoScene, 100);
+    if (location.search.includes('bestiary=1')) setTimeout(() => {
+      let i = 0;
+      for (const t in DATA.ENEMIES) if (DATA.ENEMIES[t].lore && i++ % 3) seenEnemies[t] = 1;
+      document.querySelector('.bestiarybtn').click();
+    }, 120);
   }
 
   // ?demo=1 -- jump into a staged mid-run scene (for screenshots / quick look)
@@ -1361,13 +1445,23 @@ const Game = (() => {
         { type: 'passive', id: 'kvCache', isNew: true },
       ], () => { G.state = 'run'; });
     }
+    // &haul=N: preview a multi-upgrade chest reveal
+    const hm = location.search.match(/haul=(\d)/);
+    if (hm) {
+      const pairs = [
+        { type: 'passive', id: 'gpuCluster' }, { type: 'weapon', id: 'rag' },
+        { type: 'weapon', id: 'embeddings', isNew: true }, { type: 'passive', id: 'kvCache', isNew: true },
+        { type: 'weapon', id: 'temperature', isNew: true },
+      ];
+      UI.showChest({ coins: 7, upgrades: pairs.slice(0, +hm[1]) }, () => { G.state = 'run'; });
+    }
   }
 
   // public API (used by WeaponSys + UI)
   Object.assign(G, {
     boot, startRun, quitToTitle,
     nearestEnemy, topEnemies, randomVisibleEnemy,
-    fireProj, addBeam, addZone, hitEnemy, aoe, spark, addText, shake,
+    fireProj, addBeam, addZone, hitEnemy, aoe, spark, ring, addText, shake,
     vacuumGems, announce: t => UI.banner(t),
     get buffT() { return buffT; },
   });

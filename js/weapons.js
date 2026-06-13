@@ -243,9 +243,12 @@ const WeaponSys = (() => {
       fired = true;
       if (evolved) {
         // GEMINI: instant TPU beam from orbit
+        const rr = area(G, w.s.radius * 1.8);
         G.addBeam(e.x, e.y - 520, e.x, e.y, '#7baaf7', 9);
-        G.aoe(e.x, e.y, area(G, w.s.radius * 1.8), dmg(G, w.s.dmg * 2.6, w), { kb: 100 });
-        G.spark(e.x, e.y, '#7baaf7', 10);
+        G.aoe(e.x, e.y, rr, dmg(G, w.s.dmg * 2.6, w), { kb: 120 });
+        G.ring(e.x, e.y, rr * 1.1, '#7baaf7', 0.45);
+        G.spark(e.x, e.y, '#7baaf7', 16);
+        G.shake(4);
       } else {
         G.fireProj({
           x: e.x + E.rand(-20, 20), y: e.y - 420, vx: 0, vy: 620,
@@ -391,10 +394,13 @@ const WeaponSys = (() => {
     }
   }
   function impact(G, p) {
-    G.aoe(p.x, p.y, p.aoeR || 50, p.dmg, { kb: 90 });
-    G.spark(p.x, p.y, '#c07fff', 8);
-    G.shake(2);
-    SFX.play('hit');
+    const r = p.aoeR || 50;
+    G.aoe(p.x, p.y, r, p.dmg, { kb: 130 });
+    G.ring(p.x, p.y, r * 1.15, '#c07fff', 0.42);
+    G.spark(p.x, p.y, '#c07fff', 16);
+    G.spark(p.x, p.y, '#ffd84d', 6);
+    G.shake(4);
+    SFX.play('explode');
   }
 
   function update(G, w, dt) {

@@ -42,6 +42,7 @@ const UI = (() => {
     buildLevelup();
     buildChest();
     buildPause();
+    buildBestiaryScreen();
     buildEnd('over');
     buildEnd('win');
   }
@@ -209,6 +210,8 @@ const UI = (() => {
     h('div', 'subtitle', 'a 100% organic free-range LLM-themed bullet heaven', s);
     const start = h('button', 'bigbtn start', '\u25B6 START RUN (free tier)', s);
     start.onclick = () => { SFX.init(); api.startRun(); };
+    const bestiaryBtn = h('button', 'bigbtn small gray bestiarybtn', '\uD83D\uDCD6 BESTIARY', s);
+    bestiaryBtn.onclick = () => showBestiary();
     h('div', 'controls', (IS_TOUCH
       ? 'Touch and drag anywhere to move. Everything else is automatic.'
       : 'WASD to move. Everything else is automatic.') +
@@ -248,6 +251,58 @@ const UI = (() => {
     renderShop();
     const best = api.getBest();
     bestEl.textContent = best > 0 ? ('best run: ' + fmtTime(best) + ' (impressive, almost)') : 'no runs yet. the slop awaits.';
+  }
+
+  // ---------------- bestiary (menu) ----------------
+  let bestGrid;
+  function buildBestiaryScreen() {
+    const s = h('div', 'screen modal hidden', '', root);
+    screens.bestiaryScreen = s;
+    const box = h('div', 'modalbox bestbox', '', s);
+    h('div', 'modalheader', '\uD83D\uDCD6 BESTIARY', box);
+    h('div', 'bestsub', 'the slop you have met. entries unlock on first contact.', box);
+    bestGrid = h('div', 'bestgrid', '', box);
+    const back = h('button', 'bigbtn small gray', 'BACK', box);
+    back.onclick = () => showScreen('title');
+  }
+
+  function spriteCanvas(spr, cls) {
+    const c = document.createElement('canvas');
+    c.width = spr.width; c.height = spr.height;
+    c.getContext('2d').drawImage(spr, 0, 0);
+    c.className = cls;
+    return c;
+  }
+
+  function showBestiary() {
+    const seen = api.getSeen();
+    bestGrid.innerHTML = '';
+    let nSeen = 0, nTotal = 0;
+    for (const type in DATA.ENEMIES) {
+      const def = DATA.ENEMIES[type];
+      if (!def.lore) continue; // skip minions/internal
+      nTotal++;
+      const card = h('div', 'bestentry', '', bestGrid);
+      if (seen[type]) {
+        nSeen++;
+        if (def.boss) card.classList.add('boss');
+        const row = h('div', 'brow', '', card);
+        row.appendChild(spriteCanvas(SPR.enemies[def.spr], 'bspr'));
+        const info = h('div', 'binfo', '', row);
+        h('div', 'bname', def.name + (def.boss ? ' \uD83D\uDC51' : ''), info);
+        h('div', 'bstats', 'HP x' + def.hp + ' / SPD ' + def.spd + ' / DMG ' + def.dmg, info);
+        h('div', 'blore', def.lore, card);
+        if (def.tip) h('div', 'btip', '>> ' + def.tip, card);
+      } else {
+        card.classList.add('locked');
+        h('div', 'blocked', '???', card);
+        h('div', 'bname', '? ? ?', card);
+        h('div', 'blore', 'not yet encountered', card);
+      }
+    }
+    const sub = screens.bestiaryScreen.querySelector('.bestsub');
+    if (sub) sub.textContent = nSeen + ' / ' + nTotal + ' discovered. the slop you have met.';
+    showScreen('bestiaryScreen');
   }
 
   // ---------------- level up ----------------
@@ -369,10 +424,24 @@ const UI = (() => {
     chestBox = h('div', 'modalbox chestbox', '', s);
   }
 
+  // escalating drama for multi-upgrade hauls (1..5)
+  const HAUL = [
+    null,
+    { h: '\uD83D\uDCE6 MODEL DROP', cls: '' },
+    { h: '\uD83D\uDCE6\uD83D\uDCE6 DOUBLE DROP', cls: 'haul2' },
+    { h: '\uD83D\uDD25 TRIPLE DROP!!', cls: 'haul3' },
+    { h: '\uD83D\uDCA5 MEGA DROP!!!', cls: 'haul4' },
+    { h: '\uD83C\uDF1F LEGENDARY HAUL!!!!', cls: 'haul5' },
+  ];
+
   function showChest(result, cb) {
     chestCb = cb;
     chestBox.innerHTML = '';
-    h('div', 'modalheader', '\uD83D\uDCE6 MODEL DROP', chestBox);
+    chestBox.className = 'modalbox chestbox';
+    const nUp = result.upgrades ? result.upgrades.length : 0;
+    const haul = !result.evo && nUp >= 2 ? HAUL[Math.min(nUp, 5)] : HAUL[1];
+    if (haul.cls) chestBox.classList.add(haul.cls);
+    h('div', 'modalheader', result.evo ? '\uD83D\uDCE6 MODEL DROP' : haul.h, chestBox);
     const spinner = h('div', 'chestspin', '\uD83D\uDCE6', chestBox);
     const reveal = h('div', 'chestreveal hidden', '', chestBox);
 
@@ -380,17 +449,19 @@ const UI = (() => {
       const evo = DATA.EVOLUTIONS[result.evo];
       h('div', 'evocard', '<div class="cicon big">' + evo.icon + '</div><div class="evoname">' + evo.name + '</div>' +
         '<div class="evotag">\u2B50 FRONTIER MODEL UNLOCKED \u2B50</div><div class="cdesc">' + evo.flavor + '</div>', reveal);
-    } else if (result.upgrades && result.upgrades.length) {
+    } else if (nUp) {
+      if (nUp >= 3) h('div', 'haulbadge', 'x' + nUp + ' UPGRADES', reveal);
       const list = h('div', 'chestlist', '', reveal);
-      for (const c of result.upgrades) {
+      result.upgrades.forEach((c, i) => {
         const def = c.type === 'weapon' ? DATA.WEAPONS[c.id] : c.type === 'passive' ? DATA.PASSIVES[c.id] : DATA.BONUS[c.id];
-        h('div', 'chestitem', def.icon + ' ' + def.name + (c.isNew ? ' <span class="tag new">NEW!</span>' : ' \u2B06'), list);
-      }
+        const item = h('div', 'chestitem', def.icon + ' ' + def.name + (c.isNew ? ' <span class="tag new">NEW!</span>' : ' \u2B06'), list);
+        item.style.animationDelay = (i * 0.12) + 's';
+      });
     } else {
       h('div', 'chestitem', 'just vibes in this one', reveal);
     }
     h('div', 'chestcoins', '+\uD83E\uDE99 ' + result.coins + ' credits', reveal);
-    const btn = h('button', 'bigbtn small hidden', result.evo ? 'LFG \uD83D\uDE80' : 'GG', reveal);
+    const btn = h('button', 'bigbtn small hidden', result.evo ? 'LFG \uD83D\uDE80' : nUp >= 3 ? 'LETS GOOO \uD83D\uDE80' : 'GG', reveal);
     btn.onclick = () => {
       screens.chest.classList.add('hidden');
       const f = chestCb; chestCb = null;
@@ -403,6 +474,7 @@ const UI = (() => {
       reveal.classList.remove('hidden');
       btn.classList.remove('hidden');
       if (result.evo) banner(DATA.EVOLUTIONS[result.evo].announce);
+      else if (nUp >= 3) banner(haul.h + ' x' + nUp);
     }, result.evo ? 1400 : 900);
   }
 
