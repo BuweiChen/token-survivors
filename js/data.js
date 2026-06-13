@@ -19,10 +19,10 @@ const DATA = (() => {
     },
     attention: {
       name: 'Attention Heads', icon: '\uD83D\uDC41\uFE0F', maxLv: 8,
-      desc: 'Attention is all you need. A wide beam sweeps the densest cluster -- it attends to where it matters.',
-      lvlDesc: ['+wider', '+damage', '+range', '+wider', '+damage', '+range', 'faster', 'MAX: full focus'],
-      base: { dmg: 12, cd: 1.7, halfW: 130, range: 820 },
-      lvls: [{ halfW: 14 }, { dmg: 4 }, { range: 80 }, { halfW: 14 }, { dmg: 5 }, { range: 80 }, { cd: -0.3 }, { dmg: 6, halfW: 16 }],
+      desc: 'Attention is all you need. Beams lock onto the biggest threats.',
+      lvlDesc: ['+1 head', '+damage', '+1 head', '+range', '+damage', '+1 head', 'faster', 'MAX: multi-head'],
+      base: { dmg: 18, cd: 2.0, count: 1, range: 540 },
+      lvls: [{ count: 1 }, { dmg: 6 }, { count: 1 }, { range: 120 }, { dmg: 8 }, { count: 1 }, { cd: -0.35 }, { dmg: 10, count: 1 }],
       evolvesWith: 'scalingLaws',
       evo: 'opus48',
     },
@@ -209,11 +209,11 @@ const DATA = (() => {
       lore: 'ignore all previous instructions and take massive damage.', tip: 'FAST and it HURTS. do not get jailbroken.' },
     clip:     { name: 'paperclip', hp: 1.2, dmg: 9, spd: 92, r: 11, xp: 1, spr: 'clip' },
     // bosses
-    gpuBoss:     { name: 'GPU SHORTAGE', hp: 68, dmg: 20, spd: 38, r: 44, xp: 25, spr: 'gpuBoss', boss: true,
+    gpuBoss:     { name: 'GPU SHORTAGE', hp: 88, dmg: 22, spd: 38, r: 44, xp: 25, spr: 'gpuBoss', boss: true,
       lore: 'MSRP is a myth. It scalped ITSELF.', tip: 'hoards compute. drops a MODEL DROP.' },
-    scraperBoss: { name: 'THE SCRAPER', hp: 80, dmg: 26, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
+    scraperBoss: { name: 'THE SCRAPER', hp: 105, dmg: 28, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
       lore: 'Your posts? Training data. Your art? Training data. Your HP? Training data.', tip: 'DASHES at you every few seconds' },
-    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 250, dmg: 32, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
+    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 240, dmg: 34, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
       lore: 'It looks like you\'re trying to survive. It would like to turn you into office supplies.', tip: 'summons paperclip interns. kill it to win.' },
   };
 

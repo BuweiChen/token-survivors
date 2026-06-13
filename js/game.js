@@ -19,7 +19,7 @@ const Game = (() => {
   };
 
   let enemyId = 1;
-  let spawnAcc = 0, eliteT = 28, contactT = 0, sepFrame = 0;
+  let spawnAcc = 0, eliteT = 28, contactT = 0, sepFrame = 0, spawnSurge = 0;
   let bossesSpawned = [], levelQueue = 0;
   let buffT = 0, buffName = '';
   let bestTime = +(E.store.get('ts_best') || 0);
@@ -128,7 +128,7 @@ const Game = (() => {
     G.parts.length = 0; G.texts.length = 0; G.beams.length = 0; G.zones.length = 0; G.rings.length = 0; G.agents.length = 0;
     G.cardFreezeT = 0;
     G.player = newPlayer();
-    spawnAcc = 0; eliteT = 28; contactT = 0; levelQueue = 0;
+    spawnAcc = 0; eliteT = 28; contactT = 0; levelQueue = 0; spawnSurge = 0;
     bossesSpawned = []; buffT = 0;
     recomputeStats();
     G.player.hp = G.P.maxhp;
@@ -253,7 +253,7 @@ const Game = (() => {
     while (G.xp >= G.xpNext) {
       G.xp -= G.xpNext;
       G.level++;
-      G.xpNext = Math.floor(6 + (G.level - 1) * 7 + Math.pow(G.level - 1, 1.8) * 1.3);
+      G.xpNext = Math.floor(5 + (G.level - 1) * 10 + Math.pow(G.level - 1, 1.9) * 2.2);
       levelQueue++;
     }
     if (levelQueue > 0 && G.state === 'run') openLevelUp();
@@ -344,14 +344,13 @@ const Game = (() => {
   // stage-appropriate non-evo weapon (lv1 ~7 DPS at 0:00, maxed ~60 DPS by
   // ~10:00) so one such weapon kills a basic enemy in roughly 2-5s at any
   // stage. Evolutions are what break this treadmill -- that's the point.
-  const BASE_HP0 = 20.6; // basicHpAt(0); reference for XP scaling
+  const BASE_HP0 = 18; // basicHpAt(0); reference for XP scaling
   function basicHpAt() {
     const m = G.time / 60;
-    // steeper ramp: hits its peak slope by ~8:00 then keeps climbing, so the
-    // mid-game (around 5:00) stops feeling solved
-    return (25 + 230 * Math.min(m / 8, 1) + 7 * Math.max(0, m - 8)) * 0.825;
+    // aggressive ramp: linear + quadratic so the mid/late game keeps biting
+    return (20 + 24 * m + 1.0 * m * m) * 0.9;
   }
-  function timeDmgScale() { return 1 + (G.time / 60) * 0.11; }
+  function timeDmgScale() { return 1 + (G.time / 60) * 0.13; }
   // the slop gets faster as the internet degrades (+24% by 15:00)
   function timeSpeedScale() { return 1 + Math.min(G.time / 60, 15) * 0.016; }
 
@@ -395,34 +394,45 @@ const Game = (() => {
     return Object.keys(wave.types)[0];
   }
 
+  function spawnBurst(n) {
+    for (let i = 0; i < n; i++) { const [x, y] = spawnPosAroundPlayer(); spawnEnemy(pickWaveType(), x, y, false); }
+  }
   function updateSpawning(dt) {
-    const wave = DATA.WAVES[Math.min((G.time / 60) | 0, DATA.WAVES.length - 1)];
-    const deficit = wave.target - G.enemies.length;
+    const m = G.time / 60;
+    const wave = DATA.WAVES[Math.min(m | 0, DATA.WAVES.length - 1)];
+    // the crowd grows exponentially over time, and steps up with every boss
+    // already faced; surges briefly after each boss/miniboss
+    if (spawnSurge > 0) spawnSurge -= dt;
+    const grow = Math.pow(1.085, m) * (1 + 0.5 * bossesSpawned.length);
+    const target = Math.min(650, Math.round(wave.target * grow) + (spawnSurge > 0 ? 80 : 0));
+    const deficit = target - G.enemies.length;
     if (deficit > 0) {
-      spawnAcc += dt * E.clamp(deficit * 0.5, 2, 24);
+      spawnAcc += dt * E.clamp(deficit * 0.6, 3, 70);
       let burst = 0;
-      while (spawnAcc >= 1 && burst < 6) {
+      while (spawnAcc >= 1 && burst < 16) {
         spawnAcc--; burst++;
         const [x, y] = spawnPosAroundPlayer();
         spawnEnemy(pickWaveType(), x, y, false);
       }
     }
-    // elites (minibosses)
+    // elites (minibosses) -- and a wave of adds crashes in with them
     eliteT -= dt;
     if (eliteT <= 0) {
       eliteT = 45;
       const [x, y] = spawnPosAroundPlayer();
       const e = spawnEnemy(pickWaveType(), x, y, true);
       e.dropsChest = true;
+      spawnSurge = 6; spawnBurst(10 + (m * 2) | 0);
       UI.titleCard('ELITE ' + e.def.name.toUpperCase(), E.choice(DATA.ELITE_SUBS), 'elite');
       SFX.play('elite');
     }
-    // bosses
+    // bosses -- a much bigger surge of adds escorts them
     for (const b of DATA.BOSSES) {
       if (G.time >= b.t && !bossesSpawned.includes(b.type)) {
         bossesSpawned.push(b.type);
         const [x, y] = spawnPosAroundPlayer();
         spawnEnemy(b.type, x, y, false);
+        spawnSurge = 12; spawnBurst(30 + (m * 4) | 0);
         UI.titleCard(b.title, b.sub, 'boss');
         SFX.play('boss');
         G.shake(10);
@@ -554,15 +564,18 @@ const Game = (() => {
     // weapons max (and thus evolve) more slowly the longer the run goes -- the
     // first evo lands ~first boss, later ones come steadily, not all at once.
     const m = G.time / 60;
-    const xpGrow = Math.pow(basicHpAt() / BASE_HP0, 0.5);
-    const tax = E.clamp(1.25 - m * 0.07, 0.45, 1.25);
-    let xpv = e.def.xp * xpGrow * 2 * tax * (e.elite ? 4 : 1);
+    const xpGrow = Math.pow(basicHpAt() / BASE_HP0, 0.35);
+    const tax = E.clamp(1.25 - m * 0.07, 0.4, 1.25);
+    // XP per kill is deliberately scarce (more enemies later compensate for
+    // volume; per-level cost rises too -- see gainXp)
+    let xpv = e.def.xp * xpGrow * tax * (e.elite ? 2.5 : 1);
     dropGem(e.x, e.y, Math.max(1, Math.round(xpv)));
     if (e.boss) {
       G.coins += 25;
       G.shake(12);
       SFX.play('explode');
       dropPickup(e.x - 24, e.y, 'modelcard');
+      dropPickup(e.x + 24, e.y, 'chest'); // bosses drop a chest too
     } else if (e.elite) {
       if (e.dropsChest) dropPickup(e.x + 20, e.y, 'chest');
       if (Math.random() < 0.09 + (G.P.luck - 1) * 0.12) dropPickup(e.x - 20, e.y, 'modelcard');
@@ -700,11 +713,11 @@ const Game = (() => {
     G.rings.push({ x, y, r0: r * 0.25, r, life: life || 0.4, maxLife: life || 0.4, color });
   }
 
-  function addText(x, y, str, color, size) {
+  function addText(x, y, str, color, size, life) {
     if (G.texts.length > 90) return;
     const t = textPool.get();
     t.x = x; t.y = y; t.str = str; t.color = color || '#fff';
-    t.life = t.maxLife = 0.8; t.size = size || 15;
+    t.life = t.maxLife = life || 0.8; t.size = size || 15;
     G.texts.push(t);
   }
 
@@ -1162,14 +1175,22 @@ const Game = (() => {
       if (a.kind === 'turret') {
         ctx.drawImage(SPR.turret, a.x - SPR.turret.width / 2, a.y - SPR.turret.height / 2);
       } else if (a.kind === 'llama') {
-        const s = SPR.llama;
+        const s = SPR.chest; // the herd uses the model-drop box sprite
         ctx.save();
-        ctx.globalAlpha = a.life < 2 ? 0.4 + Math.sin(G.time * 18) * 0.3 : 1; // blink before despawn
         ctx.translate(a.x, a.y + Math.sin(G.time * 8 + a.x) * 2); // little hop
         if ((a.fx || 0) < 0) ctx.scale(-1, 1);
         ctx.drawImage(s, -s.width / 2, -s.height / 2);
         ctx.restore();
-        ctx.globalAlpha = 1;
+      } else if (a.kind === 'cursor') {
+        // selection highlight over the marked enemy, then the blinking caret
+        if (a.state === 'mark' && a.tgt && a.tgt.hp > 0) {
+          const e = a.tgt, hw = e.r + 8;
+          ctx.fillStyle = 'rgba(120,190,255,0.32)';
+          ctx.fillRect(e.x - hw, e.y - hw, hw * 2, hw * 2);
+          ctx.strokeStyle = '#aef0ff'; ctx.lineWidth = 1.5;
+          ctx.strokeRect(e.x - hw, e.y - hw, hw * 2, hw * 2);
+        }
+        if ((a.blink * 3 | 0) % 2 === 0) ctx.drawImage(SPR.caret, a.x - SPR.caret.width / 2, a.y - SPR.caret.height / 2);
       } else {
         ctx.save();
         ctx.translate(a.x, a.y);

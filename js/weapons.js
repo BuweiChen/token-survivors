@@ -78,7 +78,7 @@ const WeaponSys = (() => {
             // vivid, throttled glaze feedback: a phrase + a burst of hearts
             if (G.time - (w.glazeT || -9) > 1.1) {
               w.glazeT = G.time;
-              G.addText(G.player.x, G.player.y - 36, 'chatgpt thinks ' + E.choice(GLAZE_LINES), '#ff79c6', 13);
+              G.addText(G.player.x, G.player.y - 40, 'chatgpt thinks ' + E.choice(GLAZE_LINES), '#ff79c6', 17, 3.2);
               G.hearts(G.player.x, G.player.y - 10, 6);
             }
           } : null,
@@ -131,9 +131,12 @@ const WeaponSys = (() => {
     }
     return chosen.map(bi => (bi + 0.5) / BIN * E.TAU);
   }
-  function fireSwath(G, w, a, halfW, len, d, evolved) {
+  // OPUS 4.8 evo: a wide, long, charged laser swath. hits everything in a
+  // long rectangle; leaves rings down its length; executes the top-weight
+  // target it sweeps (attention picks what matters).
+  function fireSwath(G, w, a, halfW, len, d) {
     const px = G.player.x, py = G.player.y, ca = Math.cos(a), sa = Math.sin(a);
-    const mark = ++G.frameMark, steps = Math.ceil(len / 80);
+    const mark = ++G.frameMark, steps = Math.ceil(len / 70);
     let top = null, topHp = -1;
     for (let s = 0; s <= steps; s++) {
       const sx = px + ca * (len * s / steps), sy = py + sa * (len * s / steps);
@@ -144,32 +147,63 @@ const WeaponSys = (() => {
         const fwd = rx * ca + ry * sa; if (fwd < -e.r || fwd > len) continue;
         const perp = Math.abs(-rx * sa + ry * ca); if (perp > halfW + e.r) continue;
         e._mark = mark;
-        G.hitEnemy(e, d, { kb: 50 });
+        G.hitEnemy(e, d, { kb: 70 });
         if (e.maxhp > topHp) { topHp = e.maxhp; top = e; }
       }
     }
-    // visual: translucent wide swath + bright focused core
     const ex = px + ca * len, ey = py + sa * len;
-    G.addBeam(px, py, ex, ey, evolved ? 'rgba(255,216,77,0.22)' : 'rgba(255,93,177,0.22)', halfW * 1.6);
-    G.addBeam(px, py, ex, ey, '#ffffff', evolved ? 6 : 4);
-    // the attended token: reticle + an execute bonus on the top-weight target
-    if (top) {
-      G.ring(top.x, top.y, top.r + 16, '#fff', 0.25);
-      if (evolved) G.hitEnemy(top, Math.min(top.maxhp * 0.03, 120), { kb: 0, quiet: true });
-    }
+    G.addBeam(px, py, ex, ey, 'rgba(255,216,77,0.28)', halfW * 1.8); // wide body
+    G.addBeam(px, py, ex, ey, 'rgba(255,240,170,0.6)', halfW * 0.7); // inner
+    G.addBeam(px, py, ex, ey, '#ffffff', 7);                          // core
+    for (let s = 1; s <= 4; s++) G.ring(px + ca * len * s / 4, py + sa * len * s / 4, halfW * 0.9, '#ffe89a', 0.3);
+    if (top) { G.ring(top.x, top.y, top.r + 18, '#fff', 0.3); G.hitEnemy(top, Math.min(top.maxhp * 0.04, 200), { kb: 0, quiet: true }); }
   }
   H.attention = (G, w, dt) => {
+    const evolved = w.evolved;
+    if (evolved) {
+      // charge -> fire. while charging, growing telegraph beams + inrushing
+      // sparks converge along the chosen attention directions, then unleash.
+      if (w.chargeT > 0) {
+        w.chargeT -= dt;
+        const prog = 1 - w.chargeT / 0.55, px = G.player.x, py = G.player.y;
+        for (const a of w.fireDirs) {
+          const ex = px + Math.cos(a) * w.fireLen, ey = py + Math.sin(a) * w.fireLen;
+          G.addBeam(px, py, ex, ey, 'rgba(255,216,77,' + (0.08 + prog * 0.25).toFixed(3) + ')', 2 + prog * w.halfW * 1.4);
+        }
+        if (Math.random() < 0.6) { const a = E.rand(E.TAU), r = 70 + Math.random() * 40; G.spark(px + Math.cos(a) * r, py + Math.sin(a) * r, '#ffe89a', 1); }
+        if (w.chargeT <= 0) {
+          for (const a of w.fireDirs) fireSwath(G, w, a, w.halfW, w.fireLen, w.fireDmg);
+          G.ring(G.player.x, G.player.y, 60, '#fff', 0.3);
+          SFX.play('laser');
+          w.t = cd(G, w.s.cd * 1.25);
+        }
+        return;
+      }
+      w.t -= dt;
+      if (w.t > 0) return;
+      const lasers = Math.min(3, 1 + G.P.amount); // duplication -> up to 3 beams
+      const dirs = attentionDirs(G, lasers);
+      if (!dirs.length) { w.t = 0.15; return; }
+      w.fireDirs = dirs;
+      w.halfW = area(G, 150);
+      w.fireLen = 1150;
+      w.fireDmg = dmg(G, w.s.dmg * 3, w);
+      w.chargeT = 0.55;
+      SFX.play('charge');
+      return;
+    }
+    // base: instant beams lock onto the biggest threats
     w.t -= dt;
     if (w.t > 0) return;
-    const evolved = w.evolved;
-    w.t = cd(G, evolved ? w.s.cd * 0.8 : w.s.cd);
-    const heads = evolved ? 2 + (G.P.amount > 0 ? 1 : 0) : 1;
-    const dirs = attentionDirs(G, heads);
-    if (!dirs.length) { w.t = 0.15; return; }
-    const halfW = area(G, w.s.halfW) * (evolved ? 1.25 : 1);
-    const len = w.s.range * (evolved ? 1.3 : 1);
-    const d = dmg(G, evolved ? w.s.dmg * 1.6 : w.s.dmg, w);
-    for (const a of dirs) fireSwath(G, w, a, halfW, len, d, evolved);
+    w.t = cd(G, w.s.cd);
+    const targets = G.topEnemies(cnt(G, w.s.count), area(G, w.s.range));
+    if (!targets.length) { w.t = 0.15; return; }
+    const d = dmg(G, w.s.dmg, w);
+    for (const e of targets) {
+      G.addBeam(G.player.x, G.player.y - 10, e.x, e.y, '#ff5db1', 4);
+      G.hitEnemy(e, d, { crit: critRoll(G), kb: 60 });
+      G.ring(e.x, e.y, e.r + 10, '#ff5db1', 0.18);
+    }
     SFX.play('hit');
   };
 
@@ -343,14 +377,16 @@ const WeaponSys = (() => {
     // LLaMA-405B: open weights -> the herd forks and roams free. Periodically
     // releases a wandering llama orb that hunts on its own, up to a cap.
     if (evolved) {
+      // the herd: a capped pack of persistent llamas. fills up quietly (no
+      // per-spawn spam), one banner the first time.
+      const cap = Math.min(5, 3 + ((G.P.amount / 2) | 0));
+      const herd = G.agents.filter(a => a.kind === 'llama' && a.w === w).length;
       w.herdT = (w.herdT || 0) - dt;
-      const cap = 2 + ((G.P.amount / 2) | 0);
-      const herd = G.agents.filter(a => a.kind === 'llama' && a.w === w);
-      if (w.herdT <= 0 && herd.length < cap) {
-        w.herdT = 2.8;
+      if (herd < cap && w.herdT <= 0) {
+        w.herdT = 1.5;
         const a = E.rand(E.TAU);
-        G.agents.push({ kind: 'llama', x: G.player.x + Math.cos(a) * baseR, y: G.player.y + Math.sin(a) * baseR, life: 14, cd: 0, w });
-        G.announce('the herd grows. (open weights)');
+        G.agents.push({ kind: 'llama', x: G.player.x + Math.cos(a) * baseR, y: G.player.y + Math.sin(a) * baseR, life: Infinity, cd: E.rand(0, 0.6), fx: 1, w });
+        if (!w.herdAnnounced) { w.herdAnnounced = true; G.announce('\uD83E\uDD99 the herd is loose (open weights)'); }
       }
     }
   };
@@ -510,17 +546,60 @@ const WeaponSys = (() => {
           SFX.play('shot');
         } else a.cd = 0.15;
       }
-    } else if (a.kind === 'llama') {
-      // a freed fork: wanders toward the nearest enemy and gores it
-      const e = G.nearestEnemy(a.x, a.y, 9999);
-      if (e) {
-        const ang = E.ang(a.x, a.y, e.x, e.y);
-        a.fx = Math.cos(ang);
-        a.x += Math.cos(ang) * 200 * dt;
-        a.y += Math.sin(ang) * 200 * dt;
+    } else if (a.kind === 'cursor') {
+      // CURSOR caret: seek -> highlight (select) -> delete -> return to player
+      a.blink += dt;
+      const d = dmg(G, a.w.s.dmg * 2.4, a.w);
+      if (a.state === 'seek') {
+        if (!a.tgt || a.tgt.hp <= 0) a.tgt = G.nearestEnemy(a.x, a.y, 9999);
+        if (a.tgt) {
+          const ang = E.ang(a.x, a.y, a.tgt.x, a.tgt.y);
+          a.x += Math.cos(ang) * 430 * dt; a.y += Math.sin(ang) * 430 * dt;
+          if (E.dist2(a.x, a.y, a.tgt.x, a.tgt.y) < 26 * 26) { a.state = 'mark'; a.markT = 0.5; }
+        } else { // idle near player
+          a.x += (G.player.x - a.x) * dt * 3; a.y += (G.player.y - a.y) * dt * 3;
+        }
+      } else if (a.state === 'mark') {
+        if (!a.tgt || a.tgt.hp <= 0) { a.state = 'return'; }
+        else {
+          a.x = a.tgt.x; a.y = a.tgt.y - a.tgt.r - 6; // caret sits on the selection
+          a.markT -= dt;
+          if (a.markT <= 0) {
+            // highlight vanishes -> the edit lands
+            G.hitEnemy(a.tgt, d, { kb: 40 });
+            G.addText(a.tgt.x, a.tgt.y - a.tgt.r - 8, E.choice(['delete', 'backspace', 'Tab']), '#aef0ff', 13);
+            G.spark(a.tgt.x, a.tgt.y, '#aef0ff', 6);
+            SFX.play('zap');
+            a.state = 'return';
+          }
+        }
+      } else { // return to the player before the next edit
+        const ang = E.ang(a.x, a.y, G.player.x, G.player.y);
+        a.x += Math.cos(ang) * 480 * dt; a.y += Math.sin(ang) * 480 * dt;
+        if (E.dist2(a.x, a.y, G.player.x, G.player.y) < 30 * 30) { a.state = 'seek'; a.tgt = null; }
       }
+    } else if (a.kind === 'llama') {
+      // a freed open-weights fork: roams near the player and SPITS at enemies;
+      // trots home if it strays too far. persistent (life Infinity).
       a.cd -= dt;
-      if (a.cd <= 0) { a.cd = 0.5; G.aoe(a.x, a.y, 34, dmg(G, a.w.s.dmg * 1.3, a.w), { kb: 90, quiet: true }); }
+      const far = E.dist2(a.x, a.y, G.player.x, G.player.y) > 300 * 300;
+      const e = far ? null : G.nearestEnemy(a.x, a.y, 430);
+      if (far) {
+        const ang = E.ang(a.x, a.y, G.player.x, G.player.y);
+        a.fx = Math.cos(ang);
+        a.x += Math.cos(ang) * 230 * dt; a.y += Math.sin(ang) * 230 * dt;
+      } else if (e) {
+        a.fx = e.x - a.x;
+        const dist = Math.hypot(e.x - a.x, e.y - a.y);
+        if (dist > 210) { const ang = E.ang(a.x, a.y, e.x, e.y); a.x += Math.cos(ang) * 120 * dt; a.y += Math.sin(ang) * 120 * dt; }
+        if (a.cd <= 0) {
+          a.cd = 0.7 * G.P.cooldown;
+          const ang = E.ang(a.x, a.y, e.x, e.y), v = spd(G, 370);
+          G.fireProj({ x: a.x, y: a.y - 6, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, dmg: dmg(G, a.w.s.dmg * 1.7, a.w), r: 7, pierce: 1, life: 1.4, kind: 'straight', spr: SPR.spit, rot: ang });
+        }
+      } else {
+        a.x += (G.player.x - a.x) * dt * 1.5; a.y += (G.player.y - a.y) * dt * 1.5;
+      }
     } else if (a.kind === 'claude') {
       // agentic behavior: chase nearest enemy, spin-to-win
       const e = G.nearestEnemy(a.x, a.y, 9999);
@@ -541,33 +620,35 @@ const WeaponSys = (() => {
     }
   }
 
-  // ---- HALLUCINATION / CONSTITUTIONAL AI ----
+  // ---- HALLUCINATION / CURSOR ----
+  // base: "confidently wrong" -- sprays projectiles in random directions.
+  // CURSOR (evolved): stops hallucinating, starts editing. Persistent caret
+  // agents fly to an enemy, highlight it (select), then "delete" it and Tab
+  // back to the player to pick the next edit. Capped count.
   H.hallucination = (G, w, dt) => {
+    const evolved = w.evolved;
+    if (evolved) {
+      const cap = Math.min(6, 3 + ((G.P.amount) | 0));
+      const have = G.agents.filter(a => a.kind === 'cursor' && a.w === w).length;
+      if (have < cap) {
+        const a = E.rand(E.TAU);
+        G.agents.push({ kind: 'cursor', x: G.player.x + Math.cos(a) * 30, y: G.player.y + Math.sin(a) * 30, life: Infinity, state: 'seek', tgt: null, markT: 0, blink: 0, w });
+      }
+      return;
+    }
     w.t -= dt;
     if (w.t > 0) return;
     w.t = cd(G, w.s.cd);
-    const evolved = w.evolved;
-    const n = cnt(G, w.s.count) + (evolved ? 2 : 0);
-    // CURSOR: the base weapon is "confidently wrong" -- it sprays in random
-    // directions. Evolved, it stops hallucinating and starts AUTOCOMPLETING:
-    // carets lock onto the nearest enemies and Tab from edit to edit (homing
-    // + high pierce + low wobble), accepting suggestion after suggestion.
-    const aimAt = evolved ? G.nearestEnemy(G.player.x, G.player.y, 9999) : null;
+    const n = cnt(G, w.s.count);
     for (let i = 0; i < n; i++) {
-      const a = evolved && aimAt
-        ? E.ang(G.player.x, G.player.y, aimAt.x, aimAt.y) + (i - (n - 1) / 2) * 0.22
-        : E.rand(E.TAU);
-      const v = spd(G, w.s.speed) * (evolved ? 1.35 : 1);
-      const crit = Math.random() < w.s.critCh + (G.P.luck - 1) * 0.3 + (evolved ? 0.1 : 0);
+      const a = E.rand(E.TAU);
+      const v = spd(G, w.s.speed);
+      const crit = Math.random() < w.s.critCh + (G.P.luck - 1) * 0.3;
       G.fireProj({
         x: G.player.x, y: G.player.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-        dmg: dmg(G, evolved ? w.s.dmg * 1.6 : w.s.dmg, w) * (crit ? 3 : 1), crit,
-        r: 10, pierce: evolved ? 5 : 1, life: evolved ? 3 : 2.4,
-        kind: 'wobble', wobA: E.rand(E.TAU), spr: evolved ? SPR.caret : SPR.halluc,
-        seek: evolved, alignedSeek: evolved, healOnCrit: evolved,
-        onHit: evolved ? () => {
-          if (G.time - (w.tabT || -9) > 0.6) { w.tabT = G.time; G.addText(G.player.x, G.player.y - 38, E.choice(['Tab', 'Tab >>', 'accept']), '#aef0ff', 13); }
-        } : null,
+        dmg: dmg(G, w.s.dmg, w) * (crit ? 3 : 1), crit,
+        r: 10, pierce: 1, life: 2.4,
+        kind: 'wobble', wobA: E.rand(E.TAU), spr: SPR.halluc,
       });
     }
     SFX.play('shot');
