@@ -30,9 +30,9 @@ Weapons are LLM components whose mechanics mirror the real thing:
 | Token Stream | fires tokens at nearest enemy | GPU Cluster | ChatGPT (omnidirectional firehose; glazing heals you) |
 | Attention Heads | beams lock onto the BIGGEST threats | Scaling Laws | Opus 4.8 (focus beams; bonus dmg vs high-HP) |
 | Context Window | damage aura, grows 8K -> 500K | VRAM | Fable 5 (1M ctx: lingering enemies take ramping dmg) |
-| Chain of Thought | damaging reasoning trail behind you | KV Cache | DeepSeek-R1 (trails ponder, then HUGE detonations) |
+| Chain of Thought | bolt that chains step-by-step between enemies | KV Cache | DeepSeek-R1 (reasons deeper: more jumps, each hits harder) |
 | RAG | boomerang documents | Web Crawler | Perplexity (citations[1][2][3] detonate at 3) |
-| Embedding Space | orbiting vectors | Quantization | LLaMA-405B (the herd forks: roaming llama orbs) |
+| Embedding Space | orbiting vectors | Quantization | LLaMA-405B (the herd forks: roaming friendly llamas) |
 | Temperature | flamethrower, spread = top_p | Liquid Cooling | Grok (dark-blue flames burn + ground residue + lightning) |
 | Gradient Descent | strikes fall on random enemies | LoRA | Gemini 3 (orbital carpet-bomb barrage) |
 | Tool Call | deploys turrets | System Prompt | Claude Code (swarm of subagents) |

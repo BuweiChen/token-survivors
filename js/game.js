@@ -347,12 +347,13 @@ const Game = (() => {
   const BASE_HP0 = 20.6; // basicHpAt(0); reference for XP scaling
   function basicHpAt() {
     const m = G.time / 60;
-    // x0.825 vs the original curve (TTK ~10% higher than the 0.75 pass)
-    return (25 + 195 * Math.min(m / 10, 1) + 4 * Math.max(0, m - 10)) * 0.825;
+    // steeper ramp: hits its peak slope by ~8:00 then keeps climbing, so the
+    // mid-game (around 5:00) stops feeling solved
+    return (25 + 230 * Math.min(m / 8, 1) + 7 * Math.max(0, m - 8)) * 0.825;
   }
-  function timeDmgScale() { return 1 + (G.time / 60) * 0.09; }
-  // the slop gets faster as the internet degrades (mild: +18% by 15:00)
-  function timeSpeedScale() { return 1 + Math.min(G.time / 60, 15) * 0.012; }
+  function timeDmgScale() { return 1 + (G.time / 60) * 0.11; }
+  // the slop gets faster as the internet degrades (+24% by 15:00)
+  function timeSpeedScale() { return 1 + Math.min(G.time / 60, 15) * 0.016; }
 
   function spawnEnemy(type, x, y, elite) {
     const def = DATA.ENEMIES[type];
@@ -565,11 +566,11 @@ const Game = (() => {
       // to get a build going, then sparse for the rest of the run
       const dm = G.time < 60 ? 5 : 1;
       const r = Math.random();
-      if (r < 0.0024 * dm) dropPickup(e.x, e.y, 'coin');                            // credits
-      else if (r < 0.0048 * dm) dropPickup(e.x, e.y, E.choice(['magnet', 'bomb', 'vpn'])); // utility
-      else if (r < 0.0050 * dm) dropPickup(e.x, e.y, 'modelcard');                  // rare frontier model
-      else if (r < 0.0050 * dm + 0.0030) dropPickup(e.x, e.y, 'cookie');            // healing: unchanged
-      else if (r < 0.0050 * dm + 0.0037) dropPickup(e.x, e.y, 'coffee');            // bigger heal: unchanged
+      if (r < 0.0012 * dm) dropPickup(e.x, e.y, 'coin');                            // credits
+      else if (r < 0.0024 * dm) dropPickup(e.x, e.y, E.choice(['magnet', 'bomb', 'vpn'])); // utility
+      else if (r < 0.0025 * dm) dropPickup(e.x, e.y, 'modelcard');                  // rare frontier model
+      else if (r < 0.0025 * dm + 0.0030) dropPickup(e.x, e.y, 'cookie');            // healing: unchanged
+      else if (r < 0.0025 * dm + 0.0037) dropPickup(e.x, e.y, 'coffee');            // bigger heal: unchanged
     }
     if (e.def.splits && !e.mini) {
       for (let i = 0; i < 2; i++) spawnEnemy('slopMini', e.x + E.rand(-14, 14), e.y + E.rand(-14, 14), false);
@@ -876,7 +877,6 @@ const Game = (() => {
           aoe(z.x, z.y, z.explode.r, z.explode.dmg, { kb: 140 });
           if (z.explode.ring) ring(z.x, z.y, z.explode.r, z.explode.ring, 0.4);
           spark(z.x, z.y, '#7df9ff', 14);
-          shake(4);
           SFX.play('explode');
         }
         G.zones.splice(i, 1);
@@ -1142,12 +1142,14 @@ const Game = (() => {
       if (a.kind === 'turret') {
         ctx.drawImage(SPR.turret, a.x - SPR.turret.width / 2, a.y - SPR.turret.height / 2);
       } else if (a.kind === 'llama') {
-        const s = SPR.orb, sc = 1.8;
+        const s = SPR.llama;
         ctx.save();
         ctx.globalAlpha = a.life < 2 ? 0.4 + Math.sin(G.time * 18) * 0.3 : 1; // blink before despawn
-        ctx.drawImage(s, a.x - s.width * sc / 2, a.y - s.height * sc / 2, s.width * sc, s.height * sc);
-        ctx.globalAlpha = 1;
+        ctx.translate(a.x, a.y + Math.sin(G.time * 8 + a.x) * 2); // little hop
+        if ((a.fx || 0) < 0) ctx.scale(-1, 1);
+        ctx.drawImage(s, -s.width / 2, -s.height / 2);
         ctx.restore();
+        ctx.globalAlpha = 1;
       } else {
         ctx.save();
         ctx.translate(a.x, a.y);

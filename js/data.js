@@ -37,10 +37,10 @@ const DATA = (() => {
     },
     chainOfThought: {
       name: 'Chain of Thought', icon: '\uD83D\uDCAD', maxLv: 8,
-      desc: "Let's think step by step. Each step is a landmine.",
-      lvlDesc: ['+duration', '+damage', 'wider steps', '+duration', '+damage', 'wider steps', '+duration', 'MAX: galaxy brain'],
-      base: { dmg: 5, life: 2.4, radius: 26, drop: 0.10 },
-      lvls: [{ life: 0.6 }, { dmg: 2 }, { radius: 6 }, { life: 0.6 }, { dmg: 3 }, { radius: 6 }, { life: 0.8 }, { dmg: 4, radius: 8 }],
+      desc: "Let's think step by step: a bolt that leaps from enemy to enemy, one reasoning step at a time.",
+      lvlDesc: ['+1 jump', '+damage', '+jump range', '+1 jump', '+damage', 'faster', '+1 jump', 'MAX: deep reasoning'],
+      base: { dmg: 9, cd: 0.9, chains: 3, range: 150 },
+      lvls: [{ chains: 1 }, { dmg: 3 }, { range: 30 }, { chains: 1 }, { dmg: 4 }, { cd: -0.15 }, { chains: 1 }, { dmg: 5, range: 40 }],
       evolvesWith: 'kvCache',
       evo: 'deepseekR1',
     },
@@ -119,7 +119,7 @@ const DATA = (() => {
     },
     deepseekR1: {
       name: 'DeepSeek-R1', icon: '\uD83D\uDC0B', frontier: true,
-      flavor: 'Drops <think> trails that ponder quietly, then resolve into ENORMOUS delayed detonations.',
+      flavor: 'Reasons step by step: the bolt chains through far more enemies, each jump hitting HARDER than the last.',
       announce: 'DEEPSEEK-R1 DEPLOYED -- reasoning chains armed',
     },
     perplexity: {

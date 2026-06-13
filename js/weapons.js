@@ -42,7 +42,7 @@ const WeaponSys = (() => {
       // omnidirectional firehose of piercing tokens; ~12% are sycophancy that
       // heals you ("You're absolutely right!").
       w.t = cd(G, 0.22);
-      const n = 9 + G.P.amount * 2;
+      const n = 3 + ((G.P.amount / 2) | 0);
       w.ringA = (w.ringA || 0) + 0.55;
       const v = spd(G, w.s.speed);
       for (let i = 0; i < n; i++) {
@@ -52,7 +52,7 @@ const WeaponSys = (() => {
         const word = glaze ? E.choice(GLAZE_WORDS) : crit ? E.choice(SPR.CRIT_WORDS) : E.choice(SPR.TOKEN_WORDS);
         G.fireProj({
           x: G.player.x, y: G.player.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-          dmg: (crit ? 2.5 : 1) * dmg(G, w.s.dmg * 1.5 + 6, w), crit, r: 9, pierce: 3 + w.s.pierce, life: 1.3,
+          dmg: (crit ? 2.5 : 1) * dmg(G, w.s.dmg * 1.3 + 5, w), crit, r: 9, pierce: 3 + w.s.pierce, life: 1.3,
           kind: 'straight', spr: SPR.token(word, crit), rot: a,
           burnColor: '#54ff8e',
           onHit: glaze ? () => { G.player.hp = Math.min(G.P.maxhp, G.player.hp + 1); } : null,
@@ -85,8 +85,8 @@ const WeaponSys = (() => {
     w.t -= dt;
     if (w.t > 0) return;
     const evolved = w.evolved;
-    w.t = cd(G, evolved ? w.s.cd * 0.42 : w.s.cd);
-    const n = cnt(G, w.s.count) + (evolved ? 4 : 0);
+    w.t = cd(G, evolved ? w.s.cd * 0.55 : w.s.cd);
+    const n = cnt(G, w.s.count) + (evolved ? 2 : 0);
     const range = area(G, w.s.range) * (evolved ? 1.4 : 1);
     const targets = G.topEnemies(n, range);
     if (!targets.length) { w.t = 0.15; return; }
@@ -96,7 +96,7 @@ const WeaponSys = (() => {
       if (evolved) {
         // Opus 4.8: attention weights -> it attends to what MATTERS. Bonus
         // damage scales with the target's max HP, executing the big threats.
-        const focus = d + e.maxhp * 0.05;
+        const focus = d + Math.min(e.maxhp * 0.02, 90);
         beamPierce(G, G.player.x, G.player.y, e.x, e.y, focus);
         G.ring(e.x, e.y, 26, '#ffd84d', 0.2);
       } else {
@@ -130,7 +130,7 @@ const WeaponSys = (() => {
     if (w.t > 0) return;
     w.t = cd(G, w.s.cd);
     const r = w.auraR;
-    const d = dmg(G, evolved ? w.s.dmg * 2.5 : w.s.dmg, w);
+    const d = dmg(G, evolved ? w.s.dmg * 1.8 : w.s.dmg, w);
     const cands = G.grid.query(G.player.x, G.player.y, r + 30);
     let hitAny = false;
     for (const e of cands) {
@@ -139,7 +139,7 @@ const WeaponSys = (() => {
           // Fable 5: 1M context never forgets. Every tick inside the window
           // "logs" the enemy; the longer it stays, the more damage it takes
           // (it is building a case). Also slows them and ingests all XP.
-          e.logT = Math.min((e.logT || 0) + 0.6, 3);
+          e.logT = Math.min((e.logT || 0) + 0.6, 2);
           e.slowT = 0.5;
           G.hitEnemy(e, d * (1 + e.logT), { noKb: true, quiet: true });
         } else {
@@ -157,19 +157,37 @@ const WeaponSys = (() => {
     const evolved = w.evolved;
     w.t -= dt;
     const p = G.player;
-    if (w.t <= 0 && (p.moving || evolved)) {
-      w.t = evolved ? w.s.drop * 0.7 : w.s.drop;
-      G.addZone({
-        x: p.x, y: p.y - 6,
-        r: area(G, w.s.radius) * (evolved ? 1.3 : 1),
-        life: evolved ? w.s.life * 2.4 : w.s.life,
-        dmg: dmg(G, evolved ? w.s.dmg * 1.6 : w.s.dmg, w),
-        // DeepSeek-R1: <think>...</think> for a long time, THEN it detonates.
-        // weak while pondering, enormous payoff when the reasoning resolves.
-        explode: evolved ? { r: area(G, w.s.radius) * 3.4, dmg: dmg(G, w.s.dmg * 9, w), ring: '#7df9ff' } : null,
-        kind: 'thought',
-      });
+    if (w.t > 0) return;
+    w.t = cd(G, w.s.cd);
+    // Chain of Thought: a bolt that leaps enemy-to-enemy, one reasoning step
+    // per jump. DeepSeek-R1 reasons deeper -- many more jumps, each hitting
+    // harder than the last (escalating confidence). No detonations, no shake.
+    const start = G.nearestEnemy(p.x, p.y, 560);
+    if (!start) { w.t = 0.12; return; }
+    const jumps = w.s.chains + (evolved ? 6 : 0);
+    const range = area(G, w.s.range) * (evolved ? 1.5 : 1);
+    const range2 = range * range;
+    const growth = evolved ? 1.12 : 1;
+    let d = dmg(G, evolved ? w.s.dmg * 1.5 : w.s.dmg, w);
+    const mark = ++G.frameMark;
+    let cur = start, px = p.x, py = p.y;
+    for (let j = 0; j <= jumps && cur; j++) {
+      cur._mark = mark;
+      G.addBeam(px, py, cur.x, cur.y, evolved ? '#7df9ff' : '#9ad0ff', evolved ? 4 : 3);
+      G.hitEnemy(cur, d, { kb: 30, quiet: true });
+      G.spark(cur.x, cur.y, evolved ? '#7df9ff' : '#9ad0ff', 3);
+      px = cur.x; py = cur.y;
+      d *= growth;
+      const cands = G.grid.query(px, py, range);
+      let best = null, bd = range2;
+      for (const e of cands) {
+        if (e._mark === mark || e.hp <= 0) continue;
+        const dd = E.dist2(px, py, e.x, e.y);
+        if (dd < bd) { bd = dd; best = e; }
+      }
+      cur = best;
     }
+    SFX.play('hit');
   };
 
   // ---- RAG / PERPLEXITY ----
@@ -184,7 +202,7 @@ const WeaponSys = (() => {
     const v = spd(G, w.s.speed);
     // Perplexity: every hit appends a citation[n]; the third citation makes
     // the sources detonate. "There is no escape[3]."
-    const citeDmg = dmg(G, w.s.dmg * 2.2, w);
+    const citeDmg = dmg(G, w.s.dmg * 1.6, w);
     const onHit = evolved ? (en) => {
       en.cite = (en.cite || 0) + 1;
       if (en.cite >= 3) {
@@ -200,7 +218,7 @@ const WeaponSys = (() => {
       const a = baseA + (i - (n - 1) / 2) * 0.5;
       G.fireProj({
         x: G.player.x, y: G.player.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-        dmg: dmg(G, evolved ? w.s.dmg * 1.8 : w.s.dmg, w), r: 12, pierce: 9999, life: 5,
+        dmg: dmg(G, evolved ? w.s.dmg * 1.5 : w.s.dmg, w), r: 12, pierce: 9999, life: 5,
         kind: 'boomerang', phase: 0, outT: w.s.range + (evolved ? 0.2 : 0),
         spr: SPR.doc, spin: true, seek: evolved,
         rehit: 0.4, onHit,
@@ -243,10 +261,10 @@ const WeaponSys = (() => {
     // releases a wandering llama orb that hunts on its own, up to a cap.
     if (evolved) {
       w.herdT = (w.herdT || 0) - dt;
-      const cap = 3 + ((G.P.amount) | 0);
+      const cap = 2 + ((G.P.amount / 2) | 0);
       const herd = G.agents.filter(a => a.kind === 'llama' && a.w === w);
       if (w.herdT <= 0 && herd.length < cap) {
-        w.herdT = 2.2;
+        w.herdT = 2.8;
         const a = E.rand(E.TAU);
         G.agents.push({ kind: 'llama', x: G.player.x + Math.cos(a) * baseR, y: G.player.y + Math.sin(a) * baseR, life: 14, cd: 0, w });
         G.announce('the herd grows. (open weights)');
@@ -273,7 +291,7 @@ const WeaponSys = (() => {
           vx: Math.cos(a) * v, vy: Math.sin(a) * v,
           dmg: dmg(G, w.s.dmg, w), r: 11, pierce: 9999, life: range / v,
           kind: 'flame', spr: (evolved ? SPR.dflame : SPR.flame)[(Math.random() * 2) | 0], rehit: 0.45,
-          burnDps: evolved ? dmg(G, w.s.dmg * 1.6, w) : 0, burnDur: 2.2, burnColor: '#5b2ed6',
+          burnDps: evolved ? dmg(G, w.s.dmg * 1.0, w) : 0, burnDur: 2.2, burnColor: '#5b2ed6',
         });
       }
     }
@@ -286,7 +304,7 @@ const WeaponSys = (() => {
         G.addZone({
           x: p.x - p.faceX * 20, y: p.y - p.faceY * 20,
           r: area(G, 40), life: 2.5,
-          burnDps: dmg(G, w.s.dmg * 1.2, w), burnColor: '#5b2ed6', kind: 'ember',
+          burnDps: dmg(G, w.s.dmg * 0.8, w), burnColor: '#5b2ed6', kind: 'ember',
         });
       }
       // ...plus chaos lightning on random enemies, forever (zero chill).
@@ -296,8 +314,8 @@ const WeaponSys = (() => {
         const e = G.randomVisibleEnemy();
         if (e) {
           G.addBeam(e.x, e.y - 400, e.x, e.y, '#48d0ff', 4);
-          G.aoe(e.x, e.y, 48, dmg(G, 55, w), { kb: 80 });
-          G.burn(e, dmg(G, w.s.dmg * 1.6, w), 2.2, '#5b2ed6');
+          G.aoe(e.x, e.y, 48, dmg(G, 35, w), { kb: 80 });
+          G.burn(e, dmg(G, w.s.dmg * 1.0, w), 2.2, '#5b2ed6');
           G.spark(e.x, e.y, '#48d0ff', 8);
           SFX.play('hit');
         }
@@ -317,13 +335,13 @@ const WeaponSys = (() => {
       w.t = cd(G, w.s.cd * 1.4);
       const e = G.randomVisibleEnemy();
       if (!e) { w.t = 0.15; return; }
-      const salvo = 6 + ((G.P.amount) | 0);
+      const salvo = 4 + ((G.P.amount / 2) | 0);
       const rr = area(G, w.s.radius * 1.4);
       w.barrage = w.barrage || [];
       for (let i = 0; i < salvo; i++) {
         w.barrage.push({
           x: e.x + E.rand(-150, 150), y: e.y + E.rand(-130, 130),
-          delay: i * 0.07, rr, dmg: dmg(G, w.s.dmg * 1.7, w),
+          delay: i * 0.07, rr, dmg: dmg(G, w.s.dmg * 1.3, w),
         });
       }
       return;
@@ -355,7 +373,6 @@ const WeaponSys = (() => {
         G.aoe(b.x, b.y, b.rr, b.dmg, { kb: 110 });
         G.ring(b.x, b.y, b.rr * 1.1, '#7baaf7', 0.4);
         G.spark(b.x, b.y, '#7baaf7', 12);
-        G.shake(2);
         SFX.play('hit');
         w.barrage[i] = w.barrage[w.barrage.length - 1]; w.barrage.pop();
       }
@@ -379,7 +396,7 @@ const WeaponSys = (() => {
     if (evolved) {
       // CLAUDE CODE: parallel tool use -> it spawns a SWARM of subagents that
       // each go cook on their own. count scales with the +projectile stat.
-      const want = 3 + ((G.P.amount) | 0);
+      const want = 2 + ((G.P.amount / 2) | 0);
       const have = G.agents.filter(a => a.kind === 'claude').length;
       if (have < want) {
         for (let i = have; i < want; i++) {
@@ -415,11 +432,12 @@ const WeaponSys = (() => {
       const e = G.nearestEnemy(a.x, a.y, 9999);
       if (e) {
         const ang = E.ang(a.x, a.y, e.x, e.y);
+        a.fx = Math.cos(ang);
         a.x += Math.cos(ang) * 200 * dt;
         a.y += Math.sin(ang) * 200 * dt;
       }
       a.cd -= dt;
-      if (a.cd <= 0) { a.cd = 0.35; G.aoe(a.x, a.y, 34, dmg(G, a.w.s.dmg * 2.0, a.w), { kb: 90, quiet: true }); }
+      if (a.cd <= 0) { a.cd = 0.5; G.aoe(a.x, a.y, 34, dmg(G, a.w.s.dmg * 1.3, a.w), { kb: 90, quiet: true }); }
     } else if (a.kind === 'claude') {
       // agentic behavior: chase nearest enemy, spin-to-win
       const e = G.nearestEnemy(a.x, a.y, 9999);
@@ -434,8 +452,8 @@ const WeaponSys = (() => {
       a.spinA += dt * 9;
       a.cd -= dt;
       if (a.cd <= 0) {
-        a.cd = 0.3 * G.P.cooldown;
-        G.aoe(a.x, a.y, 46, dmg(G, a.w.s.dmg * 3.5, a.w), { kb: 60, quiet: true });
+        a.cd = 0.45 * G.P.cooldown;
+        G.aoe(a.x, a.y, 46, dmg(G, a.w.s.dmg * 2.2, a.w), { kb: 60, quiet: true });
       }
     }
   }
@@ -460,13 +478,13 @@ const WeaponSys = (() => {
       const crit = Math.random() < w.s.critCh + (G.P.luck - 1) * 0.3 + (evolved ? 0.1 : 0);
       G.fireProj({
         x: G.player.x, y: G.player.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-        dmg: dmg(G, evolved ? w.s.dmg * 2.2 : w.s.dmg, w) * (crit ? 3 : 1), crit,
+        dmg: dmg(G, evolved ? w.s.dmg * 1.7 : w.s.dmg, w) * (crit ? 3 : 1), crit,
         r: 10, pierce: evolved ? 3 : 1, life: 2.4,
         kind: 'wobble', wobA: E.rand(E.TAU), spr: SPR.halluc,
         seek: evolved, alignedSeek: evolved, healOnCrit: evolved,
         onHit: (evolved && crit) ? (en) => {
           // redemption: a constitutional pulse on the crit's target
-          G.aoe(en.x, en.y, 62, dmg(G, w.s.dmg * 1.4, w), { kb: 70 });
+          G.aoe(en.x, en.y, 62, dmg(G, w.s.dmg * 1.0, w), { kb: 70 });
           G.ring(en.x, en.y, 62, '#b347ff', 0.3);
         } : null,
       });
@@ -533,7 +551,6 @@ const WeaponSys = (() => {
     G.ring(p.x, p.y, r * 1.15, '#c07fff', 0.42);
     G.spark(p.x, p.y, '#c07fff', 16);
     G.spark(p.x, p.y, '#ffd84d', 6);
-    G.shake(4);
     SFX.play('explode');
   }
 
