@@ -410,6 +410,32 @@ const SPR = (() => {
     '.oyo.',
   ], { r: '#ff4422', o: '#ff9933', y: '#ffe066' });
 
+  // GROK: cold, unhinged dark-blue/violet flames
+  const dflame0 = pat([
+    '..b..',
+    '.bbv.',
+    'bvvcb',
+    '.vcv.',
+  ], { b: '#1a1f8c', v: '#5b2ed6', c: '#48d0ff' });
+  const dflame1 = pat([
+    '.b.b.',
+    '.vbv.',
+    'bvcvb',
+    '.vcv.',
+  ], { b: '#1a1f8c', v: '#5b2ed6', c: '#48d0ff' });
+  // ground residue patch (drawn scaled, additive)
+  const emberPatch = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 32;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(16, 16, 2, 16, 16, 16);
+    grad.addColorStop(0, 'rgba(90,46,214,0.9)');
+    grad.addColorStop(0.6, 'rgba(40,30,160,0.5)');
+    grad.addColorStop(1, 'rgba(20,20,80,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, 32, 32);
+    return c;
+  })();
+
   const gdOrb = pat([
     '.pp.',
     'pPPp',
@@ -553,7 +579,7 @@ const SPR = (() => {
     glowGold: glowSprite(34, 'rgba(255,216,77,0.55)'),
     glowCyan: glowSprite(24, 'rgba(120,230,255,0.45)'),
     glowPink: glowSprite(34, 'rgba(255,125,249,0.55)'),
-    doc, orb, flame: [flame0, flame1], gdOrb, halluc, turret, claudeBuddy, lightning, web,
+    doc, orb, flame: [flame0, flame1], dflame: [dflame0, dflame1], emberPatch, gdOrb, halluc, turret, claudeBuddy, lightning, web,
     token, TOKEN_WORDS, CRIT_WORDS,
     bgTile: makeBgTile(),
   };

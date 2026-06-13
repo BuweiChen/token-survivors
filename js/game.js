@@ -344,11 +344,11 @@ const Game = (() => {
   // stage-appropriate non-evo weapon (lv1 ~7 DPS at 0:00, maxed ~60 DPS by
   // ~10:00) so one such weapon kills a basic enemy in roughly 2-5s at any
   // stage. Evolutions are what break this treadmill -- that's the point.
-  const BASE_HP0 = 18.75; // basicHpAt(0); reference for XP scaling
+  const BASE_HP0 = 20.6; // basicHpAt(0); reference for XP scaling
   function basicHpAt() {
     const m = G.time / 60;
-    // x0.75 vs the original curve -> ~25% lower TTK at every stage
-    return (25 + 195 * Math.min(m / 10, 1) + 4 * Math.max(0, m - 10)) * 0.75;
+    // x0.825 vs the original curve (TTK ~10% higher than the 0.75 pass)
+    return (25 + 195 * Math.min(m / 10, 1) + 4 * Math.max(0, m - 10)) * 0.825;
   }
   function timeDmgScale() { return 1 + (G.time / 60) * 0.09; }
   // the slop gets faster as the internet degrades (mild: +18% by 15:00)
@@ -368,6 +368,7 @@ const Game = (() => {
     e.flash = 0; e.kbx = 0; e.kby = 0; e.slowT = 0; e.wobble = E.rand(E.TAU);
     e.dashT = 0; e.spawnT = 0; e._mark = 0;
     e.abilT = 3; e.abil2T = 8; e.telegraphT = 0; e.chargeT = 0; e.cvx = 0; e.cvy = 0; e.enraged = false;
+    e.burnT = 0; e.burnDps = 0; e.burnAcc = 0; e.burnColor = '#ff7b2e'; e.logT = 0; e.cite = 0;
     e.spr = SPR.enemies[def.spr];
     G.enemies.push(e);
     if (def.lore && !seenEnemies[type] && !G.testMode) {
@@ -560,12 +561,15 @@ const Game = (() => {
       if (e.dropsChest) dropPickup(e.x + 20, e.y, 'chest');
       if (Math.random() < 0.09 + (G.P.luck - 1) * 0.12) dropPickup(e.x - 20, e.y, 'modelcard');
     } else {
+      // non-healing drops are rare; 5x more generous in the opening minute
+      // to get a build going, then sparse for the rest of the run
+      const dm = G.time < 60 ? 5 : 1;
       const r = Math.random();
-      if (r < 0.024) dropPickup(e.x, e.y, 'coin');                                  // credits
-      else if (r < 0.048) dropPickup(e.x, e.y, E.choice(['magnet', 'bomb', 'vpn'])); // utility, much more common
-      else if (r < 0.0488) dropPickup(e.x, e.y, 'modelcard');                       // rare frontier model
-      else if (r < 0.0518) dropPickup(e.x, e.y, 'cookie');                          // rare crumb of healing
-      else if (r < 0.0525) dropPickup(e.x, e.y, 'coffee');                          // rarer bigger heal
+      if (r < 0.0024 * dm) dropPickup(e.x, e.y, 'coin');                            // credits
+      else if (r < 0.0048 * dm) dropPickup(e.x, e.y, E.choice(['magnet', 'bomb', 'vpn'])); // utility
+      else if (r < 0.0050 * dm) dropPickup(e.x, e.y, 'modelcard');                  // rare frontier model
+      else if (r < 0.0050 * dm + 0.0030) dropPickup(e.x, e.y, 'cookie');            // healing: unchanged
+      else if (r < 0.0050 * dm + 0.0037) dropPickup(e.x, e.y, 'coffee');            // bigger heal: unchanged
     }
     if (e.def.splits && !e.mini) {
       for (let i = 0; i < 2; i++) spawnEnemy('slopMini', e.x + E.rand(-14, 14), e.y + E.rand(-14, 14), false);
@@ -626,7 +630,10 @@ const Game = (() => {
       case 'chest': openChest(); break;
       case 'coffee': p.hp = Math.min(G.P.maxhp, p.hp + 30); addText(p.x, p.y - 30, '+30 HP', '#54ff8e'); SFX.play('pickup'); break;
       case 'cookie': p.hp = Math.min(G.P.maxhp, p.hp + 10); addText(p.x, p.y - 30, 'cookie accepted (+10 HP)', '#d9a45c'); SFX.play('pickup'); break;
-      case 'magnet': for (const g of G.gems) g.vac = true; addText(p.x, p.y - 30, 'DATA HOOVERED', '#39d7ff'); SFX.play('pickup'); break;
+      case 'magnet':
+        for (const g of G.gems) g.vac = true;
+        for (const pk2 of G.pickups) if (pk2.kind !== 'chest') pk2.vac = true; // credits + items too
+        addText(p.x, p.y - 30, 'DATA HOOVERED', '#39d7ff'); SFX.play('pickup'); break;
       case 'bomb': aoe(p.x, p.y, 9999, 600 * G.P.might, { kb: 250 }); G.shake(10); addText(p.x, p.y - 30, 'sudo rm -rf ./slop', '#ff5d5d'); SFX.play('explode'); break;
       case 'vpn': p.invulnT = 8; addText(p.x, p.y - 30, 'VPN ON (untouchable)', '#aee3ff'); SFX.play('pickup'); break;
       case 'coin': { const c = E.randi(2, 5); G.coins += c; addText(p.x, p.y - 30, '+' + c + ' credits', '#37e07a'); SFX.play('coin'); break; }
@@ -657,6 +664,15 @@ const Game = (() => {
       pt.color = color; pt.size = E.rand(2, 5);
       G.parts.push(pt);
     }
+  }
+
+  // apply / refresh a burning damage-over-time on an enemy (takes the
+  // stronger of the current and incoming burn so stacking patches don't shrink)
+  function burn(e, dps, dur, color) {
+    if (e.hp <= 0) return;
+    e.burnDps = Math.max(e.burnDps, dps);
+    e.burnT = Math.max(e.burnT, dur);
+    if (color) e.burnColor = color;
   }
 
   // expanding shockwave ring (purely visual)
@@ -807,6 +823,8 @@ const Game = (() => {
           pr.hitAt.set(e.id, G.time);
         }
         hitEnemy(e, pr.dmg, { crit: pr.crit, kb: 60 });
+        if (pr.burnDps && e.hp > 0) burn(e, pr.burnDps, pr.burnDur || 1.5, pr.burnColor);
+        if (pr.onHit) pr.onHit(e);
         if (pr.healOnCrit && pr.crit) p.hp = Math.min(G.P.maxhp, p.hp + 1);
         if (pr.kind === 'fall') { dead = true; break; }
         if (pr.pierce < 9000) {
@@ -839,19 +857,27 @@ const Game = (() => {
     }
     if (G.state !== 'run') return; // a web volley can be lethal
 
-    // zones (chain of thought)
+    // zones (chain of thought trails, grok ember patches)
     for (let i = G.zones.length - 1; i >= 0; i--) {
       const z = G.zones[i];
       z.life -= dt; z.tickT -= dt;
       if (z.tickT <= 0) {
         z.tickT = 0.45;
-        aoe(z.x, z.y, z.r, z.dmg, { noKb: true, quiet: true });
+        if (z.burnDps) {
+          // residue: set enemies in the patch on fire instead of direct hits
+          const cands = G.grid.query(z.x, z.y, z.r + 30);
+          for (const e of cands) if (E.dist2(z.x, z.y, e.x, e.y) < (z.r + e.r) * (z.r + e.r)) burn(e, z.burnDps, 1.1, z.burnColor);
+        } else {
+          aoe(z.x, z.y, z.r, z.dmg, { noKb: true, quiet: true });
+        }
       }
       if (z.life <= 0) {
         if (z.explode) {
-          aoe(z.x, z.y, z.explode.r, z.explode.dmg, { kb: 110 });
-          spark(z.x, z.y, '#7df9ff', 9);
-          if (Math.random() < 0.3) SFX.play('hit');
+          aoe(z.x, z.y, z.explode.r, z.explode.dmg, { kb: 140 });
+          if (z.explode.ring) ring(z.x, z.y, z.explode.r, z.explode.ring, 0.4);
+          spark(z.x, z.y, '#7df9ff', 14);
+          shake(4);
+          SFX.play('explode');
         }
         G.zones.splice(i, 1);
       }
@@ -863,6 +889,14 @@ const Game = (() => {
     for (let i = 0; i < G.enemies.length; i++) {
       const e = G.enemies[i];
       if (e.flash > 0) e.flash -= dt;
+      // burning damage-over-time (Grok, residue patches)
+      if (e.burnT > 0) {
+        e.burnT -= dt;
+        e.burnAcc += e.burnDps * dt;
+        if (e.burnAcc >= 1) { const bd = Math.floor(e.burnAcc); e.burnAcc -= bd; hitEnemy(e, bd, { noKb: true, quiet: true }); }
+        if (Math.random() < dt * 12) spark(e.x + E.rand(-6, 6), e.y - 6, e.burnColor, 1);
+        if (e.hp <= 0) continue; // burned to death; swap-popped, handle next frame
+      }
       let sp = e.spd * (e.slowT > 0 ? 0.5 : 1);
       if (e.slowT > 0) e.slowT -= dt;
       if (e.boss) sp = bossAbilities(e, dt, sp);
@@ -925,9 +959,18 @@ const Game = (() => {
       }
     }
 
-    // pickups
+    // pickups: every non-chest item (drops AND health) is drawn in by
+    // pickup range, same as gems. chests must be walked into deliberately.
     for (let i = G.pickups.length - 1; i >= 0; i--) {
       const pk = G.pickups[i];
+      if (pk.kind !== 'chest') {
+        if (!pk.vac && E.dist2(pk.x, pk.y, p.x, p.y) < magR2) pk.vac = true;
+        if (pk.vac) {
+          const a = E.ang(pk.x, pk.y, p.x, p.y);
+          pk.x += Math.cos(a) * 560 * dt;
+          pk.y += Math.sin(a) * 560 * dt;
+        }
+      }
       if (E.dist2(pk.x, pk.y, p.x, p.y) < 34 * 34) {
         G.pickups.splice(i, 1);
         collectPickup(pk);
@@ -994,6 +1037,7 @@ const Game = (() => {
     pr.kind = 'straight'; pr.spr = null; pr.rot = 0; pr.spin = false; pr.crit = false;
     pr.wobA = 0; pr.seek = false; pr.tgt = null; pr.phase = 0; pr.outT = 0; pr.ty = 0;
     pr.aoeR = 0; pr.rehit = 0; pr.healOnCrit = false;
+    pr.burnDps = 0; pr.burnDur = 0; pr.burnColor = null; pr.onHit = null; pr.trail = null; pr.alignedSeek = false;
     Object.assign(pr, props);
     G.projs.push(pr);
     return pr;
@@ -1020,9 +1064,18 @@ const Game = (() => {
     // zones
     for (const z of G.zones) {
       const a = E.clamp(z.life / z.maxLife, 0, 1);
-      ctx.globalAlpha = 0.25 + a * 0.45;
-      const s = z.r * 2.2;
-      ctx.drawImage(cloudSpr, z.x - s / 2, z.y - s / 2, s, s);
+      if (z.burnDps) {
+        // grok ember residue: additive flickering violet pool
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = (0.35 + a * 0.45) * (0.8 + Math.sin(G.time * 18 + z.x) * 0.2);
+        const s = z.r * 2.4;
+        ctx.drawImage(SPR.emberPatch, z.x - s / 2, z.y - s / 2, s, s);
+        ctx.globalCompositeOperation = 'source-over';
+      } else {
+        ctx.globalAlpha = 0.25 + a * 0.45;
+        const s = z.r * 2.2;
+        ctx.drawImage(cloudSpr, z.x - s / 2, z.y - s / 2, s, s);
+      }
     }
     ctx.globalAlpha = 1;
 
@@ -1088,10 +1141,17 @@ const Game = (() => {
     for (const a of G.agents) {
       if (a.kind === 'turret') {
         ctx.drawImage(SPR.turret, a.x - SPR.turret.width / 2, a.y - SPR.turret.height / 2);
+      } else if (a.kind === 'llama') {
+        const s = SPR.orb, sc = 1.8;
+        ctx.save();
+        ctx.globalAlpha = a.life < 2 ? 0.4 + Math.sin(G.time * 18) * 0.3 : 1; // blink before despawn
+        ctx.drawImage(s, a.x - s.width * sc / 2, a.y - s.height * sc / 2, s.width * sc, s.height * sc);
+        ctx.globalAlpha = 1;
+        ctx.restore();
       } else {
         ctx.save();
         ctx.translate(a.x, a.y);
-        ctx.rotate(a.spinA);
+        ctx.rotate(a.spinA || 0);
         ctx.drawImage(SPR.claudeBuddy, -SPR.claudeBuddy.width / 2, -SPR.claudeBuddy.height / 2);
         ctx.restore();
       }
@@ -1433,6 +1493,20 @@ const Game = (() => {
     spawnEnemy('gpuBoss', G.player.x + 380, G.player.y - 120, false);
     for (let i = 0; i < 14; i++) dropGem(G.player.x + E.rand(-300, 300), G.player.y + E.rand(-300, 300), E.choice([1, 1, 5, 25]));
     dropPickup(G.player.x - 160, G.player.y + 120, 'chest');
+    // &evos=1: grant + evolve every weapon to inspect evolution fx
+    if (location.search.includes('evos=1')) {
+      for (const id in DATA.WEAPONS) {
+        let wp = G.player.weapons.find(x => x.id === id) || addWeapon(id);
+        wp.lv = DATA.WEAPONS[id].maxLv; wp.evolved = true; wp.evoId = DATA.WEAPONS[id].evo;
+        WeaponSys.computeStats(wp);
+      }
+      for (let i = 0; i < 30; i++) {
+        const a = E.rand(E.TAU), d = E.rand(120, 360);
+        spawnEnemy(E.choice(['spam', 'markov', 'slop', 'scam', 'deepfake']),
+          G.player.x + Math.cos(a) * d, G.player.y + Math.sin(a) * d, false);
+      }
+      keys.d = true; // walk so trails/embers lay down
+    }
     // &cards=1: pop a deterministic level-up to inspect recipe footers
     if (location.search.includes('cards=1')) {
       const ts = G.player.weapons.find(w => w.id === 'tokenStream');
@@ -1461,7 +1535,7 @@ const Game = (() => {
   Object.assign(G, {
     boot, startRun, quitToTitle,
     nearestEnemy, topEnemies, randomVisibleEnemy,
-    fireProj, addBeam, addZone, hitEnemy, aoe, spark, ring, addText, shake,
+    fireProj, addBeam, addZone, hitEnemy, aoe, spark, ring, addText, shake, burn,
     vacuumGems, announce: t => UI.banner(t),
     get buffT() { return buffT; },
   });

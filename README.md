@@ -27,16 +27,16 @@ Weapons are LLM components whose mechanics mirror the real thing:
 
 | Weapon | Mechanic | + Passive | Evolution |
 |---|---|---|---|
-| Token Stream | fires tokens at nearest enemy | GPU Cluster | ChatGPT (token firehose) |
-| Attention Heads | beams lock onto the BIGGEST threats | Scaling Laws | Opus 4.8 (piercing multi-head) |
-| Context Window | damage aura, grows 8K -> 500K | VRAM | Fable 5 (1M ctx: huge, slows, ingests XP) |
-| Chain of Thought | damaging reasoning trail behind you | KV Cache | DeepSeek-R1 (trail persists + detonates) |
-| RAG | boomerang documents | Web Crawler | Perplexity (homing citations) |
-| Embedding Space | orbiting vectors | Quantization | LLaMA-405B (double ring, faster) |
-| Temperature | flamethrower, spread = top_p | Liquid Cooling | Grok (chaos lightning storm) |
-| Gradient Descent | strikes fall on random enemies | LoRA | Gemini 3 (orbital TPU beams) |
-| Tool Call | deploys turrets | System Prompt | Claude Code (autonomous agent buddy) |
-| Hallucination | random projectiles, "confidently wrong" crits | RLHF | Constitutional AI (aligned + homing) |
+| Token Stream | fires tokens at nearest enemy | GPU Cluster | ChatGPT (omnidirectional firehose; glazing heals you) |
+| Attention Heads | beams lock onto the BIGGEST threats | Scaling Laws | Opus 4.8 (focus beams; bonus dmg vs high-HP) |
+| Context Window | damage aura, grows 8K -> 500K | VRAM | Fable 5 (1M ctx: lingering enemies take ramping dmg) |
+| Chain of Thought | damaging reasoning trail behind you | KV Cache | DeepSeek-R1 (trails ponder, then HUGE detonations) |
+| RAG | boomerang documents | Web Crawler | Perplexity (citations[1][2][3] detonate at 3) |
+| Embedding Space | orbiting vectors | Quantization | LLaMA-405B (the herd forks: roaming llama orbs) |
+| Temperature | flamethrower, spread = top_p | Liquid Cooling | Grok (dark-blue flames burn + ground residue + lightning) |
+| Gradient Descent | strikes fall on random enemies | LoRA | Gemini 3 (orbital carpet-bomb barrage) |
+| Tool Call | deploys turrets | System Prompt | Claude Code (swarm of subagents) |
+| Hallucination | random projectiles, "confidently wrong" crits | RLHF | Constitutional AI (homes true; crits redeem + heal) |
 
 Passives: GPU Cluster (damage), VRAM (+projectiles), Quantization (cooldown),
 Scaling Laws (area), KV Cache (proj speed), Web Crawler (magnet), LoRA (XP),

@@ -104,52 +104,52 @@ const DATA = (() => {
   const EVOLUTIONS = {
     chatgpt: {
       name: 'ChatGPT', icon: '\uD83E\uDD16', frontier: true,
-      flavor: '800 million weekly users. The token stream becomes a token FIREHOSE.',
+      flavor: '800M users at once: an omnidirectional token firehose. The glazing (\'slay\', \'based\') even heals you.',
       announce: 'ChatGPT DEPLOYED -- unlimited tokens, no rate limits',
     },
     opus48: {
       name: 'Opus 4.8', icon: '\uD83C\uDFBC', frontier: true,
-      flavor: 'Attends to everything, everywhere, all at once. SOTA on hurting the opps.',
+      flavor: 'Attention weights: it attends to what MATTERS, hitting the biggest threats hardest. Piercing focus beams.',
       announce: 'OPUS 4.8 DEPLOYED -- multi-head attention engaged',
     },
     fable5: {
       name: 'Fable 5', icon: '\uD83D\uDCD6', frontier: true,
-      flavor: '1M context. It remembers everything the slop has ever done. EVERYTHING.',
+      flavor: '1M context: the longer slop lingers in the window, the more it remembers -- damage ramps as it builds a case.',
       announce: 'FABLE 5 DEPLOYED -- 1M CONTEXT WINDOW',
     },
     deepseekR1: {
       name: 'DeepSeek-R1', icon: '\uD83D\uDC0B', frontier: true,
-      flavor: '<think> for a very long time </think> then everything on the path explodes.',
+      flavor: 'Drops <think> trails that ponder quietly, then resolve into ENORMOUS delayed detonations.',
       announce: 'DEEPSEEK-R1 DEPLOYED -- reasoning chains armed',
     },
     perplexity: {
       name: 'Perplexity', icon: '\uD83D\uDD0E', frontier: true,
-      flavor: 'Now with citations[1]. The citations seek you[2]. There is no escape[3].',
+      flavor: 'Homing sources tag the slop with citations[1][2][3]; the third citation makes them detonate.',
       announce: 'PERPLEXITY DEPLOYED -- sources now homing',
     },
     llama: {
       name: 'LLaMA-405B', icon: '\uD83E\uDD99', frontier: true,
-      flavor: 'Open weights. The herd is free. The herd is also heavily armed.',
+      flavor: 'Open weights: the herd FORKS. Roaming llama vectors break off and hunt the slop on their own.',
       announce: 'LLAMA-405B DEPLOYED -- weights have been opened',
     },
     grok: {
       name: 'Grok', icon: '\u26A1', frontier: true,
-      flavor: 'Powered by 200,000 GPUs and zero chill. Storm mode: unhinged.',
+      flavor: 'Cold dark-blue flames that keep burning long after they pass, leave smouldering residue, and rain chaos lightning.',
       announce: 'GROK DEPLOYED -- colossus cooling online',
     },
     gemini: {
       name: 'Gemini 3', icon: '\u264A', frontier: true,
-      flavor: 'Orbital TPU beams. Everything below this line is deprecated.',
+      flavor: 'Google-scale orbital infrastructure carpet-bombs the field with a rolling TPU beam barrage.',
       announce: 'GEMINI 3 DEPLOYED -- sky beams authorized',
     },
     claudeCode: {
       name: 'Claude Code', icon: '\u2733\uFE0F', frontier: true,
-      flavor: 'An agentic coworker spawns. It never sleeps. It refactors flesh.',
+      flavor: 'Parallel tool use: spawns a SWARM of subagents that each go cook on their own.',
       announce: 'CLAUDE CODE DEPLOYED -- agent is cooking',
     },
     constitutionalAI: {
       name: 'Constitutional AI', icon: '\u2696\uFE0F', frontier: true,
-      flavor: 'The hallucinations now follow a constitution. Article 1: seek the enemy.',
+      flavor: 'No longer confidently wrong -- now confidently RIGHT. Shots home true; crits redeem the target and heal you.',
       announce: 'CONSTITUTIONAL AI -- hallucinations aligned',
     },
   };
@@ -209,11 +209,11 @@ const DATA = (() => {
       lore: 'ignore all previous instructions and take massive damage.', tip: 'FAST and it HURTS. do not get jailbroken.' },
     clip:     { name: 'paperclip', hp: 1.2, dmg: 9, spd: 92, r: 11, xp: 1, spr: 'clip' },
     // bosses
-    gpuBoss:     { name: 'GPU SHORTAGE', hp: 38, dmg: 20, spd: 38, r: 44, xp: 25, spr: 'gpuBoss', boss: true,
+    gpuBoss:     { name: 'GPU SHORTAGE', hp: 68, dmg: 20, spd: 38, r: 44, xp: 25, spr: 'gpuBoss', boss: true,
       lore: 'MSRP is a myth. It scalped ITSELF.', tip: 'hoards compute. drops a MODEL DROP.' },
-    scraperBoss: { name: 'THE SCRAPER', hp: 50, dmg: 26, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
+    scraperBoss: { name: 'THE SCRAPER', hp: 80, dmg: 26, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
       lore: 'Your posts? Training data. Your art? Training data. Your HP? Training data.', tip: 'DASHES at you every few seconds' },
-    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 155, dmg: 32, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
+    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 250, dmg: 32, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
       lore: 'It looks like you\'re trying to survive. It would like to turn you into office supplies.', tip: 'summons paperclip interns. kill it to win.' },
   };
 
