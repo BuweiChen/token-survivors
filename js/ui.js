@@ -181,7 +181,7 @@ const UI = (() => {
     const info = h('div', 'binfo', '', row);
     h('div', 'bname', def.name, info);
     h('div', 'blore', def.lore, info);
-    h('div', 'bstats', 'HP ' + def.hp + ' / SPD ' + def.spd + ' / DMG ' + def.dmg, info);
+    h('div', 'bstats', 'HP x' + def.hp + ' / SPD ' + def.spd + ' / DMG ' + def.dmg, info);
     if (def.tip) h('div', 'btip', '>> ' + def.tip, info);
     SFX.play('bestiary');
     setTimeout(() => toast.classList.add('out'), 5600);

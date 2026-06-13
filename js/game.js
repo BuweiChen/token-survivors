@@ -294,9 +294,17 @@ const Game = (() => {
   }
 
   // ---------- spawning ----------
-  // tuned so an unpretrained (no meta buys) run is a genuine longshot
-  function timeHpScale() { const m = G.time / 60; return 1 + m * 0.3 + Math.pow(m, 1.6) * 0.09; }
+  // HP of a 1x "basic" enemy over time. Tracks the power curve of a single
+  // stage-appropriate non-evo weapon (lv1 ~7 DPS at 0:00, maxed ~60 DPS by
+  // ~10:00) so one such weapon kills a basic enemy in roughly 2-5s at any
+  // stage. Evolutions are what break this treadmill -- that's the point.
+  function basicHpAt() {
+    const m = G.time / 60;
+    return 25 + 195 * Math.min(m / 10, 1) + 4 * Math.max(0, m - 10);
+  }
   function timeDmgScale() { return 1 + (G.time / 60) * 0.09; }
+  // the slop gets faster as the internet degrades (mild: +18% by 15:00)
+  function timeSpeedScale() { return 1 + Math.min(G.time / 60, 15) * 0.012; }
 
   function spawnEnemy(type, x, y, elite) {
     const def = DATA.ENEMIES[type];
@@ -304,8 +312,8 @@ const Game = (() => {
     e.id = enemyId++;
     e.type = type; e.def = def;
     e.x = x; e.y = y;
-    e.hp = e.maxhp = def.hp * timeHpScale() * (elite ? 9 : 1) * (def.boss ? 1 : 1);
-    e.spd = def.spd * E.rand(0.9, 1.1);
+    e.hp = e.maxhp = def.hp * basicHpAt() * (elite ? 4 : 1);
+    e.spd = def.spd * E.rand(0.9, 1.1) * timeSpeedScale();
     e.r = def.r * (elite ? 1.45 : 1);
     e.dmg = def.dmg * timeDmgScale() * (elite ? 1.5 : 1);
     e.elite = !!elite; e.boss = !!def.boss;
@@ -489,7 +497,7 @@ const Game = (() => {
     if (Math.random() < 0.25) SFX.play('hit');
     // drops: chests come from elites ONLY (about 20 a run); bosses pay out
     // a frontier model card + credits instead
-    dropGem(e.x, e.y, e.elite ? 25 : e.def.xp);
+    dropGem(e.x, e.y, (e.elite ? 25 : e.def.xp) * 2); // x2: kills are slower now
     if (e.boss) {
       G.coins += 25;
       G.shake(12);

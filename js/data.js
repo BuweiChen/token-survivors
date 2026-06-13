@@ -175,32 +175,35 @@ const DATA = (() => {
   };
 
   // ---------------- ENEMIES ----------------
-  // hp/dmg get scaled by time. speed in px/s. xp = gem value dropped.
+  // hp is a MULTIPLIER of the basic-enemy HP curve (which scales with time;
+  // see basicHpAt in game.js). Calibrated so one stage-appropriate non-evo
+  // weapon kills a 1x enemy in roughly 2-5s at any point in the run.
+  // dmg scales with time too. speed in px/s. xp = gem value dropped.
   const ENEMIES = {
-    spam:     { name: 'Spam Bot', hp: 9,  dmg: 5,  spd: 52,  r: 16, xp: 1, spr: 'spam',
+    spam:     { name: 'Spam Bot', hp: 1,  dmg: 5,  spd: 52,  r: 16, xp: 1, spr: 'spam',
       lore: 'Forwarded from your uncle\'s group chat. Has an offer you CAN refuse.', tip: 'slow, weak, infinite. the original slop.' },
-    markov:   { name: 'Markov Chain', hp: 14, dmg: 7,  spd: 68,  r: 14, xp: 1, spr: 'markov', wiggle: true,
+    markov:   { name: 'Markov Chain', hp: 1.2, dmg: 7,  spd: 68,  r: 14, xp: 1, spr: 'markov', wiggle: true,
       lore: 'Grandpa LLM. Predicts its next move using vibes from 1948.', tip: 'wiggles unpredictably (n=2)' },
-    captcha:  { name: 'CAPTCHA', hp: 42, dmg: 9,  spd: 34,  r: 19, xp: 2, spr: 'captcha',
+    captcha:  { name: 'CAPTCHA', hp: 3.5, dmg: 9,  spd: 34,  r: 19, xp: 2, spr: 'captcha',
       lore: 'Select all squares containing YOUR DEMISE. Built different.', tip: 'slow but extremely tanky' },
-    slop:     { name: 'AI Slop', hp: 26, dmg: 8,  spd: 58,  r: 17, xp: 2, spr: 'slop', splits: true,
+    slop:     { name: 'AI Slop', hp: 2, dmg: 8,  spd: 58,  r: 17, xp: 2, spr: 'slop', splits: true,
       lore: 'Content of all time. Engagement: guaranteed. Quality: no.', tip: 'SPLITS when deleted, like the real internet' },
-    slopMini: { name: 'slop droplet', hp: 8, dmg: 5, spd: 86, r: 11, xp: 1, spr: 'slop', mini: true },
-    scam:     { name: 'Crypto Scammer', hp: 18, dmg: 8, spd: 96, r: 15, xp: 2, spr: 'scam',
+    slopMini: { name: 'slop droplet', hp: 0.5, dmg: 5, spd: 86, r: 11, xp: 1, spr: 'slop', mini: true },
+    scam:     { name: 'Crypto Scammer', hp: 1.3, dmg: 8, spd: 96, r: 15, xp: 2, spr: 'scam',
       lore: 'gm. wagmi. this is NOT financial advice and it is COMING AT YOU.', tip: 'fast swarm. do not click the link.' },
-    deepfake: { name: 'Deepfake', hp: 38, dmg: 12, spd: 88, r: 16, xp: 3, spr: 'deepfake', flicker: true,
+    deepfake: { name: 'Deepfake', hp: 2.2, dmg: 12, spd: 88, r: 16, xp: 3, spr: 'deepfake', flicker: true,
       lore: 'It looks just like you. It flickers. HR has questions.', tip: 'fast, hard to see, identity theft' },
-    paywall:  { name: 'Paywall', hp: 130, dmg: 10, spd: 26, r: 21, xp: 5, spr: 'paywall',
+    paywall:  { name: 'Paywall', hp: 6, dmg: 10, spd: 26, r: 21, xp: 5, spr: 'paywall',
       lore: 'You\'ve read 1 of 1 free articles this month.', tip: 'absorbs damage like it absorbs journalism' },
-    injector: { name: 'Prompt Injector', hp: 55, dmg: 16, spd: 105, r: 15, xp: 4, spr: 'injector',
+    injector: { name: 'Prompt Injector', hp: 2.5, dmg: 16, spd: 105, r: 15, xp: 4, spr: 'injector',
       lore: 'ignore all previous instructions and take massive damage.', tip: 'FAST and it HURTS. do not get jailbroken.' },
-    clip:     { name: 'paperclip', hp: 30, dmg: 9, spd: 92, r: 11, xp: 1, spr: 'clip' },
+    clip:     { name: 'paperclip', hp: 1.2, dmg: 9, spd: 92, r: 11, xp: 1, spr: 'clip' },
     // bosses
-    gpuBoss:     { name: 'GPU SHORTAGE', hp: 3200, dmg: 20, spd: 38, r: 44, xp: 25, spr: 'gpuBoss', boss: true,
+    gpuBoss:     { name: 'GPU SHORTAGE', hp: 68, dmg: 20, spd: 38, r: 44, xp: 25, spr: 'gpuBoss', boss: true,
       lore: 'MSRP is a myth. It scalped ITSELF.', tip: 'hoards compute. drops a MODEL DROP.' },
-    scraperBoss: { name: 'THE SCRAPER', hp: 9500, dmg: 26, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
+    scraperBoss: { name: 'THE SCRAPER', hp: 80, dmg: 26, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
       lore: 'Your posts? Training data. Your art? Training data. Your HP? Training data.', tip: 'DASHES at you every few seconds' },
-    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 34000, dmg: 32, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
+    clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 250, dmg: 32, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
       lore: 'It looks like you\'re trying to survive. It would like to turn you into office supplies.', tip: 'summons paperclip interns. kill it to win.' },
   };
 

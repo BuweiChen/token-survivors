@@ -59,6 +59,11 @@ of double damage and faster everything.
 
 Enemies: spam bots, markov chains, CAPTCHAs, AI slop (it splits), crypto
 scammers, deepfakes (they mimic you and flicker), paywalls, prompt injectors.
+All enemy HP scales with time on a curve matched to single-weapon power: one
+stage-appropriate non-evo weapon kills a basic enemy in ~2-5s at any point
+in the run (enemy `hp` in data.js is a multiplier of that curve). Enemies
+also creep faster (+18% by 15:00) and hit harder over time. Evolutions are
+what break the treadmill.
 Bosses: GPU Shortage (5:00), The Scraper (10:00), and at 15:00 -- CLIPPY, the
 Paperclip Maximizer. "It looks like you're trying to survive."
 
