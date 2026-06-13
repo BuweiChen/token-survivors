@@ -1,10 +1,12 @@
 # TOKEN SURVIVORS
 
+## ▶ Play now: https://buweichen.github.io/token-survivors
+
 An LLM-themed Vampire Survivors style bullet heaven for the browser.
 You are a tiny AI agent. The internet's slop is coming for you. Survive 15
 minutes, build a frontier-model arsenal, and defeat the Paperclip Maximizer.
 
-## Run it
+## Run it locally
 
 No build step, no dependencies. Either:
 
