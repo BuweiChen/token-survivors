@@ -133,7 +133,7 @@ const Game = (() => {
     addWeapon('tokenStream');
     UI.hideAll(); UI.showHud(true);
     UI.banner('SURVIVE THE SLOP. 15:00 TO AGI.');
-    SFX.init(); SFX.startMusic();
+    SFX.init(); SFX.resumeAll(); SFX.startMusic('run');
   }
 
   function endRun(won) {
@@ -151,7 +151,8 @@ const Game = (() => {
   function quitToTitle() {
     bankRunCoins(); // rage quitting should not also rage quit your credits
     G.state = 'title';
-    SFX.stopMusic();
+    SFX.resumeAll(); // may arrive here from pause with the clock suspended
+    SFX.startMusic('menu');
     UI.hideAll(); UI.showHud(false);
     UI.showTitle();
   }
@@ -1170,6 +1171,13 @@ const Game = (() => {
       if (k === 'm') { const m = SFX.toggleMute(); UI.banner(m ? 'muted (silence is golden)' : 'unmuted (bass returns)'); UI.syncMuteBtn(); }
       if ((k === 'p' || k === 'escape')) togglePause();
       SFX.init();
+      if (G.state === 'title') SFX.startMusic('menu');
+    });
+    // browsers only allow audio after a gesture: first click/tap on the
+    // title screen kicks off the menu track
+    window.addEventListener('pointerdown', () => {
+      SFX.init();
+      if (G.state === 'title') SFX.startMusic('menu');
     });
     window.addEventListener('keyup', ev => { keys[ev.key.toLowerCase()] = false; });
     window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -1177,8 +1185,8 @@ const Game = (() => {
   }
 
   function togglePause() {
-    if (G.state === 'run') { G.state = 'pause'; UI.showPause(); }
-    else if (G.state === 'pause') { G.state = 'run'; UI.hidePause(); }
+    if (G.state === 'run') { G.state = 'pause'; UI.showPause(); SFX.pauseAll(); }
+    else if (G.state === 'pause') { G.state = 'run'; UI.hidePause(); SFX.resumeAll(); }
   }
 
   function initTouch() {
@@ -1309,7 +1317,7 @@ const Game = (() => {
       startRun, quitToTitle, buyMeta, togglePause, setAutoPick,
       getBank: () => bank, getBest: () => bestTime, getMeta: () => metaRanks,
       getAutoPick: () => autoPick,
-      resume: () => { G.state = 'run'; },
+      resume: () => { G.state = 'run'; SFX.resumeAll(); },
     });
     // tab closed / backgrounded mid-run: bank what was earned so far
     window.addEventListener('pagehide', () => {
