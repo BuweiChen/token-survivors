@@ -6,7 +6,7 @@ const UI = (() => {
   let api = null;
   let root, hud, screens = {};
   let hpFill, hpText, xpFill, timerEl, killsEl, coinsEl, levelEl, iconRow, bannerBox, bossBox, bossFill, bossName, vign;
-  let joyBase, joyKnob, muteBtn, tcardBox, bestiaryBox;
+  let joyBase, joyKnob, muteBtn, tcardBox, bestiaryBox, flash, confettiBox;
   const IS_TOUCH = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
   let iconsDirty = true;
   let lastHp = -1, lastXp = -1, lastTime = -1, lastKills = -1, lastCoins = -1, lastLevel = -1;
@@ -36,6 +36,8 @@ const UI = (() => {
     joyKnob = h('div', 'joyknob hidden', '', root);
     tcardBox = h('div', 'tcardbox', '', root);
     bestiaryBox = h('div', 'bestiarybox', '', root);
+    flash = h('div', 'dropflash', '', root);
+    confettiBox = h('div', 'confettibox', '', root);
 
     buildHud();
     buildTitle();
@@ -424,24 +426,36 @@ const UI = (() => {
     chestBox = h('div', 'modalbox chestbox', '', s);
   }
 
-  // escalating drama for multi-upgrade hauls (1..5)
-  const HAUL = [
-    null,
-    { h: '\uD83D\uDCE6 MODEL DROP', cls: '' },
-    { h: '\uD83D\uDCE6\uD83D\uDCE6 DOUBLE DROP', cls: 'haul2' },
-    { h: '\uD83D\uDD25 TRIPLE DROP!!', cls: 'haul3' },
-    { h: '\uD83D\uDCA5 MEGA DROP!!!', cls: 'haul4' },
-    { h: '\uD83C\uDF1F LEGENDARY HAUL!!!!', cls: 'haul5' },
+  // rarity tiers 0..4. evolutions are always legendary; upgrade hauls scale
+  // common -> legendary by count.
+  const RARITY = [
+    { key: 'common', label: 'COMMON', glow: '#aab4c8', btn: 'GG' },
+    { key: 'uncommon', label: 'UNCOMMON', glow: '#54ff8e', btn: 'GG' },
+    { key: 'rare', label: 'RARE DROP!', glow: '#4aa3ff', btn: "LET'S GO" },
+    { key: 'epic', label: 'EPIC DROP!!', glow: '#b347ff', btn: 'LETS GOOO \uD83D\uDE80' },
+    { key: 'legendary', label: 'LEGENDARY DROP!!!', glow: '#ffd84d', btn: 'LFG \uD83D\uDE80\uD83D\uDE80' },
   ];
+  const CONFETTI_COLORS = ['#ff004c', '#ff9a00', '#ffee00', '#2dd4ff', '#b347ff', '#54ff8e', '#ff79c6'];
+  function confettiBurst(n) {
+    for (let i = 0; i < n; i++) {
+      const c = h('i', 'confetti', '', confettiBox);
+      c.style.left = E.rand(0, 100) + 'vw';
+      c.style.background = E.choice(CONFETTI_COLORS);
+      c.style.animationDelay = E.rand(0, 0.5) + 's';
+      c.style.animationDuration = E.rand(1.8, 2.8) + 's';
+      setTimeout(() => c.remove(), 3400);
+    }
+  }
 
   function showChest(result, cb) {
     chestCb = cb;
     chestBox.innerHTML = '';
-    chestBox.className = 'modalbox chestbox';
     const nUp = result.upgrades ? result.upgrades.length : 0;
-    const haul = !result.evo && nUp >= 2 ? HAUL[Math.min(nUp, 5)] : HAUL[1];
-    if (haul.cls) chestBox.classList.add(haul.cls);
-    h('div', 'modalheader', result.evo ? '\uD83D\uDCE6 MODEL DROP' : haul.h, chestBox);
+    const tier = result.evo ? 4 : E.clamp((nUp || 1) - 1, 0, 4);
+    const rar = RARITY[tier];
+    chestBox.className = 'modalbox chestbox rar-' + rar.key;
+    h('div', 'rarbadge rar-' + rar.key, rar.label, chestBox);
+    h('div', 'modalheader', result.evo ? '\uD83D\uDCE6 MODEL DROP' : '\uD83D\uDCE6 LOOT', chestBox);
     const spinner = h('div', 'chestspin', '\uD83D\uDCE6', chestBox);
     const reveal = h('div', 'chestreveal hidden', '', chestBox);
 
@@ -461,7 +475,7 @@ const UI = (() => {
       h('div', 'chestitem', 'just vibes in this one', reveal);
     }
     h('div', 'chestcoins', '+\uD83E\uDE99 ' + result.coins + ' credits', reveal);
-    const btn = h('button', 'bigbtn small hidden', result.evo ? 'LFG \uD83D\uDE80' : nUp >= 3 ? 'LETS GOOO \uD83D\uDE80' : 'GG', reveal);
+    const btn = h('button', 'bigbtn small hidden', rar.btn, reveal);
     btn.onclick = () => {
       screens.chest.classList.add('hidden');
       const f = chestCb; chestCb = null;
@@ -473,8 +487,11 @@ const UI = (() => {
       spinner.classList.add('hidden');
       reveal.classList.remove('hidden');
       btn.classList.remove('hidden');
+      SFX.play('dropT' + tier);
+      if (tier >= 2) { flash.className = 'dropflash on rar-' + rar.key; setTimeout(() => flash.className = 'dropflash', 400); }
+      if (tier >= 2) confettiBurst(tier >= 4 ? 70 : tier >= 3 ? 50 : 30);
       if (result.evo) banner(DATA.EVOLUTIONS[result.evo].announce);
-      else if (nUp >= 3) banner(haul.h + ' x' + nUp);
+      else if (tier >= 2) banner(rar.label);
     }, result.evo ? 1400 : 900);
   }
 
@@ -544,16 +561,21 @@ const UI = (() => {
     const e = endEls[kind];
     if (kind === 'win') {
       e.head.innerHTML = '\uD83C\uDFC6 AGI ACHIEVED (internally)';
-      e.sub.textContent = 'You defeated the Paperclip Maximizer. The slop has been aligned. You shipped to prod.';
+      e.sub.textContent = stats.overtime
+        ? 'You defeated CLIPPY and held back the singularity for as long as flesh allows. You shipped to prod.'
+        : 'You defeated the Paperclip Maximizer. The slop has been aligned. You shipped to prod.';
     } else {
       e.head.innerHTML = '\uD83D\uDC80 YOU GOT RATE LIMITED';
       e.sub.textContent = E.choice(DATA.DEATH_LINES);
     }
+    const cherry = (stats.newBest && stats.time > 0)
+      ? '<div class="newbest">\uD83C\uDF52 NEW BEST SURVIVAL TIME! \uD83C\uDF52</div>' : '';
     e.stats.innerHTML =
       '<div>\u23F1 survived: <b>' + fmtTime(stats.time) + '</b></div>' +
+      (stats.best ? '<div>\uD83E\uDD47 best: <b>' + fmtTime(stats.best) + '</b></div>' : '') +
       '<div>\uD83D\uDCC8 level: <b>' + stats.level + '</b></div>' +
       '<div>\uD83D\uDC80 slop deleted: <b>' + stats.kills + '</b></div>' +
-      '<div>\uD83E\uDE99 credits banked: <b>+' + stats.earned + '</b></div>';
+      '<div>\uD83E\uDE99 credits banked: <b>+' + stats.earned + '</b></div>' + cherry;
     showScreen(kind);
   }
   const showOver = stats => fillEnd('over', stats);

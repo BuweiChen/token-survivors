@@ -253,6 +253,42 @@ const SPR = (() => {
     '.sss.',
   ], { s: '#c4cde0' });
 
+  // BOSS: Tung Tung Tung Sahur -- anthropomorphic wooden baseball bat w/ face
+  const tungBoss = pat([
+    '....ww....',
+    '...wBBw...',
+    '...wBBw...',
+    '...wBBw...',
+    '..wBeeBw..',
+    '..wBppBw..',
+    '..wBBBBw..',
+    'sswmmmmwss',
+    '..wBttBw..',
+    '..wBBBBw..',
+    '.wBBBBBBw.',
+    '.wBBBBBBw.',
+    'wBBBBBBBBw',
+    'wBBgGgGBBw',
+    'wBBBBBBBBw',
+    '.wBBBBBBw.',
+    '..wB..Bw..',
+    '..ww..ww..',
+  ], { w: '#3a2412', B: '#9a6328', b: '#7a4d20', e: '#f4ead2', p: '#1b1e2b', m: '#2a1608', t: '#f4ead2', g: '#7a4d20', G: '#b9823f', s: '#caa56a' }, 4);
+
+  // BOSS: The Singularity -- a swirling vortex (rotated in render)
+  const singularityBoss = pat([
+    '...pppp...',
+    '.pp.cc.pp.',
+    '.p.cKKc.p.',
+    'pp.cK.Kc.p',
+    'p.cK..wKcp',
+    'pcKw..Kc.p',
+    'p.cK.Kc.pp',
+    '.p.cKKc.p.',
+    '.pp.cc.pp.',
+    '...pppp...',
+  ], { p: '#b347ff', c: '#7a2bd0', K: '#48d0ff', w: '#0a0a14' }, 5);
+
   // outline a sprite: stamp its silhouette in 8 directions, tint, redraw on top.
   // makes friendly drops pop against the enemy/projectile noise.
   function outlined(spr, color, px = 2) {
@@ -611,7 +647,7 @@ const SPR = (() => {
   return {
     SCALE,
     player: [player0, player1],
-    enemies: { spam, markov, captcha, slop, scam, deepfake, paywall, injector, gpuBoss, scraperBoss, clippy, clip },
+    enemies: { spam, markov, captcha, slop, scam, deepfake, paywall, injector, gpuBoss, scraperBoss, clippy, clip, tungBoss, singularityBoss },
     gems,
     coin: outlined(coin, '#eafff2', 2),
     coffee: outlined(coffee, '#fff', 2),

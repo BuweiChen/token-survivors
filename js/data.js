@@ -214,7 +214,11 @@ const DATA = (() => {
     scraperBoss: { name: 'THE SCRAPER', hp: 105, dmg: 28, spd: 46, r: 36, xp: 25, spr: 'scraperBoss', boss: true,
       lore: 'Your posts? Training data. Your art? Training data. Your HP? Training data.', tip: 'DASHES at you every few seconds' },
     clippy:      { name: 'CLIPPY, PAPERCLIP MAXIMIZER', hp: 240, dmg: 34, spd: 52, r: 40, xp: 100, spr: 'clippy', boss: true, final: true,
-      lore: 'It looks like you\'re trying to survive. It would like to turn you into office supplies.', tip: 'summons paperclip interns. kill it to win.' },
+      lore: 'It looks like you\'re trying to survive. It would like to turn you into office supplies.', tip: 'summons paperclip interns. defeat it to reach AGI... then survive.' },
+    tungBoss:    { name: 'TUNG TUNG TUNG SAHUR', hp: 70, dmg: 24, spd: 50, r: 38, xp: 25, spr: 'tungBoss', boss: true,
+      lore: 'A sentient wooden bat that bangs out the dawn. tung. tung. tung. you should have woken up.', tip: 'TUNG combo: 3 rhythmic shockwaves. read the beat.' },
+    singularityBoss: { name: 'THE SINGULARITY', hp: 95, dmg: 20, spd: 16, r: 46, xp: 50, spr: 'singularityBoss', boss: true,
+      lore: 'It does not chase. It does not need to. All compute bends toward it.', tip: 'pulls you IN and sprays a spiral of shards. keep your distance.' },
   };
 
   // ---------------- WAVE SCHEDULE (per minute, 15 min run) ----------------
@@ -239,7 +243,9 @@ const DATA = (() => {
 
   const BOSSES = [
     { t: 300, type: 'gpuBoss', title: 'GPU SHORTAGE', sub: 'OUT OF STOCK EVERYWHERE' },
+    { t: 450, type: 'tungBoss', title: 'TUNG TUNG TUNG SAHUR', sub: 'tung. tung. tung. WAKE UP.' },
     { t: 600, type: 'scraperBoss', title: 'THE SCRAPER', sub: 'YOUR DATA IS ITS DATA' },
+    { t: 750, type: 'singularityBoss', title: 'THE SINGULARITY', sub: 'it pulls everything in. even you.' },
     { t: 900, type: 'clippy', title: 'CLIPPY', sub: '"It looks like you\'re trying to survive. Would you like help with that?"' },
   ];
 

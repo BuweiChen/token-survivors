@@ -15,6 +15,7 @@ const Game = (() => {
     cam: { x: 0, y: 0, sx: 0, sy: 0, shake: 0 },
     frameMark: 0,
     cardFreezeT: 0, // boss title card briefly freezes the sim
+    overtime: false, overtimeStart: 0, clippyDefeated: false, // post-Clippy endless
     testMode: false,
   };
 
@@ -129,6 +130,7 @@ const Game = (() => {
     G.cardFreezeT = 0;
     G.player = newPlayer();
     spawnAcc = 0; eliteT = 28; contactT = 0; levelQueue = 0; spawnSurge = 0;
+    G.overtime = false; G.overtimeStart = 0; G.clippyDefeated = false;
     bossesSpawned = []; buffT = 0;
     recomputeStats();
     G.player.hp = G.P.maxhp;
@@ -143,10 +145,11 @@ const Game = (() => {
     SFX.stopMusic();
     SFX.play(won ? 'win' : 'death');
     const earned = G.coins;
-    if (G.time > bestTime) bestTime = G.time;
+    const newBest = G.time > bestTime;
+    if (newBest) bestTime = G.time;
     bankRunCoins();
     UI.showHud(false);
-    const stats = { time: G.time, kills: G.kills, level: G.level, earned, won };
+    const stats = { time: G.time, kills: G.kills, level: G.level, earned, won, overtime: G.clippyDefeated, newBest, best: bestTime };
     if (won) UI.showWin(stats); else UI.showOver(stats);
   }
 
@@ -345,12 +348,15 @@ const Game = (() => {
   // ~10:00) so one such weapon kills a basic enemy in roughly 2-5s at any
   // stage. Evolutions are what break this treadmill -- that's the point.
   const BASE_HP0 = 18; // basicHpAt(0); reference for XP scaling
+  // post-Clippy "overtime": seconds elapsed since AGI; drives runaway scaling
+  function overT() { return G.overtime ? (G.time - G.overtimeStart) : 0; }
   function basicHpAt() {
     const m = G.time / 60;
-    // aggressive ramp: linear + quadratic so the mid/late game keeps biting
-    return (20 + 24 * m + 1.0 * m * m) * 0.9;
+    // aggressive ramp: linear + quadratic so the mid/late game keeps biting;
+    // in overtime HP roughly doubles every 40s -> a maxed player drowns fast
+    return (20 + 24 * m + 1.0 * m * m) * 0.9 * (G.overtime ? Math.pow(2, overT() / 40) : 1);
   }
-  function timeDmgScale() { return 1 + (G.time / 60) * 0.13; }
+  function timeDmgScale() { return (1 + (G.time / 60) * 0.13) * (G.overtime ? Math.pow(1.4, overT() / 45) : 1); }
   // the slop gets faster as the internet degrades (+24% by 15:00)
   function timeSpeedScale() { return 1 + Math.min(G.time / 60, 15) * 0.016; }
 
@@ -369,6 +375,7 @@ const Game = (() => {
     e.dashT = 0; e.spawnT = 0; e._mark = 0;
     e.abilT = 3; e.abil2T = 8; e.telegraphT = 0; e.chargeT = 0; e.cvx = 0; e.cvy = 0; e.enraged = false;
     e.burnT = 0; e.burnDps = 0; e.burnAcc = 0; e.burnColor = '#ff7b2e'; e.logT = 0; e.cite = 0; e.stunT = 0;
+    e.tungN = 0; e.tungT = 0; e.spinA = 0;
     e.spr = SPR.enemies[def.spr];
     G.enemies.push(e);
     if (def.lore && !seenEnemies[type] && !G.testMode) {
@@ -403,8 +410,8 @@ const Game = (() => {
     // the crowd grows exponentially over time, and steps up with every boss
     // already faced; surges briefly after each boss/miniboss
     if (spawnSurge > 0) spawnSurge -= dt;
-    const grow = Math.pow(1.085, m) * (1 + 0.5 * bossesSpawned.length);
-    const target = Math.min(650, Math.round(wave.target * grow) + (spawnSurge > 0 ? 80 : 0));
+    const grow = Math.pow(1.085, m) * (1 + 0.5 * bossesSpawned.length) * (G.overtime ? Math.pow(1.8, overT() / 40) : 1);
+    const target = Math.min(G.overtime ? 950 : 650, Math.round(wave.target * grow) + (spawnSurge > 0 ? 80 : 0));
     const deficit = target - G.enemies.length;
     if (deficit > 0) {
       spawnAcc += dt * E.clamp(deficit * 0.6, 3, 70);
@@ -515,6 +522,33 @@ const Game = (() => {
         addText(e.x, e.y - 72, "it looks like you're DYING", '#cfd8ea');
         SFX.play('shot');
       }
+    } else if (e.type === 'tungBoss') {
+      // the TUNG combo: three rhythmic shockwave slams
+      if (e.abilT <= 0 && e.tungN <= 0) { e.abilT = 5; e.tungN = 3; e.tungT = 0.4; }
+      if (e.tungN > 0) {
+        e.tungT -= dt;
+        if (e.tungT <= 0) {
+          e.tungT = 0.42; e.tungN--;
+          const r = 130;
+          aoe(e.x, e.y, r, e.dmg * 0.7, { kb: 150 });
+          ring(e.x, e.y, r, '#d8a05a', 0.42);
+          addText(e.x, e.y - e.r - 12, 'TUNG', '#e6b878', 24);
+          SFX.play('boss');
+        }
+      }
+    } else if (e.type === 'singularityBoss') {
+      // gravity well: drags the player inward, then spirals out shards
+      const ga = E.ang(p.x, p.y, e.x, e.y);
+      p.x += Math.cos(ga) * 78 * dt; p.y += Math.sin(ga) * 78 * dt;
+      if (e.abilT <= 0) {
+        e.abilT = 0.16;
+        e.spinA = (e.spinA || 0) + 0.55;
+        for (let k = 0; k < 2; k++) {
+          const a = e.spinA + k * Math.PI;
+          fireEnemyProj(e.x, e.y, Math.cos(a) * 155, Math.sin(a) * 155, e.dmg * 0.55, 'shard');
+        }
+      }
+      return sp * 0.45; // it barely moves; the pull does the work
     }
     return sp;
   }
@@ -593,7 +627,17 @@ const Game = (() => {
     if (e.def.splits && !e.mini) {
       for (let i = 0; i < 2; i++) spawnEnemy('slopMini', e.x + E.rand(-14, 14), e.y + E.rand(-14, 14), false);
     }
-    if (e.def.final) { removeEnemy(e); endRun(true); return; }
+    if (e.def.final && !G.overtime) {
+      // defeating Clippy doesn't end the run -- it begins OVERTIME, where
+      // scaling goes vertical. you've "won"; now see how long you last.
+      removeEnemy(e);
+      G.clippyDefeated = true;
+      G.overtime = true; G.overtimeStart = G.time;
+      UI.titleCard('AGI ACHIEVED', 'the slop wants your compute -- SURVIVE AS LONG AS YOU CAN', 'boss');
+      G.cardFreezeT = 2.2;
+      SFX.play('evolve');
+      return;
+    }
     removeEnemy(e);
   }
 
@@ -621,7 +665,7 @@ const Game = (() => {
         SFX.play('evolve');
         G.shake(14);
       } else {
-        endRun(false);
+        endRun(G.clippyDefeated); // dying after AGI still counts as a win
       }
     }
   }
@@ -1208,7 +1252,16 @@ const Game = (() => {
       if (alpha < 1) ctx.globalAlpha = Math.max(0.15, alpha);
       const sc = e.elite ? 1.45 : 1;
       const sw = s.width * sc, sh = s.height * sc;
-      ctx.drawImage(s, e.x - sw / 2, e.y - sh / 2, sw, sh);
+      if (e.type === 'singularityBoss') {
+        // the vortex visibly swirls
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.rotate(G.time * 1.6);
+        ctx.drawImage(s, -sw / 2, -sh / 2, sw, sh);
+        ctx.restore();
+      } else {
+        ctx.drawImage(s, e.x - sw / 2, e.y - sh / 2, sw, sh);
+      }
       if (alpha < 1) ctx.globalAlpha = 1;
       if (e.boss || e.elite) {
         // mini hp bar

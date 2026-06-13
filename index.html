@@ -205,14 +205,33 @@
   .chestitem { font: 900 18px Impact, sans-serif; margin: 6px 0; text-shadow: 2px 2px 0 #000; animation: cardin .3s ease-out backwards; }
   .chestcoins { margin-top: 12px; font: 900 16px Impact, sans-serif; color: #37e07a; }
   .haulbadge { display: inline-block; font: 900 16px Impact, sans-serif; color: #03240f; background: linear-gradient(180deg, #ffe066, #ffb300); border: 2px solid #000; border-radius: 8px; padding: 3px 12px; margin-bottom: 8px; transform: rotate(-2deg); box-shadow: 3px 3px 0 #000; }
-  /* escalating multi-drop drama */
-  .chestbox.haul2 { border-color: #54ff8e; }
-  .chestbox.haul3 { border-color: #ffd84d; box-shadow: 8px 8px 0 #000, 0 0 26px rgba(255,216,77,.5); }
-  .chestbox.haul4 { border-color: #ff9a00; box-shadow: 8px 8px 0 #000, 0 0 34px rgba(255,154,0,.65); animation: haulshake .5s ease-in-out; }
-  .chestbox.haul5 { border-color: #ff47b8; box-shadow: 8px 8px 0 #000, 0 0 44px rgba(255,71,184,.8); animation: haulshake .5s ease-in-out, evoglow 1s ease-in-out infinite alternate; }
-  .chestbox.haul3 .modalheader, .chestbox.haul4 .modalheader, .chestbox.haul5 .modalheader { animation: rainbow 1.2s linear infinite, haulpulse .5s ease-in-out infinite alternate; }
   @keyframes haulpulse { from { transform: scale(1); } to { transform: scale(1.08); } }
-  @keyframes haulshake { 0%,100% { transform: rotate(-.6deg) translateX(0); } 20% { transform: translateX(-9px) rotate(-2deg); } 40% { transform: translateX(8px) rotate(2deg); } 60% { transform: translateX(-6px); } 80% { transform: translateX(5px); } }
+  @keyframes rarshake { 0%,100% { transform: rotate(-.6deg) translateX(0); } 20% { transform: translateX(-9px) rotate(-2deg); } 40% { transform: translateX(8px) rotate(2deg); } 60% { transform: translateX(-6px); } 80% { transform: translateX(5px); } }
+
+  /* ---------- rarity tiers ---------- */
+  .rarbadge { display: inline-block; font: 900 15px Impact, sans-serif; letter-spacing: 1px; padding: 3px 14px; border: 2px solid #000; border-radius: 8px; margin-bottom: 8px; box-shadow: 3px 3px 0 #000; }
+  .rarbadge.rar-common { color: #1b1e2b; background: #aab4c8; }
+  .rarbadge.rar-uncommon { color: #03240f; background: #54ff8e; }
+  .rarbadge.rar-rare { color: #fff; background: #2f7fd6; }
+  .rarbadge.rar-epic { color: #fff; background: #8a3fd0; animation: haulpulse .5s ease-in-out infinite alternate; }
+  .rarbadge.rar-legendary { color: #1b1e2b; background: linear-gradient(90deg, #ffd84d, #ff9a00, #ffd84d); background-size: 200%; animation: rainbow 1.2s linear infinite, haulpulse .45s ease-in-out infinite alternate; }
+  .chestbox.rar-uncommon { border-color: #54ff8e; }
+  .chestbox.rar-rare { border-color: #4aa3ff; box-shadow: 8px 8px 0 #000, 0 0 26px rgba(74,163,255,.55); }
+  .chestbox.rar-epic { border-color: #b347ff; box-shadow: 8px 8px 0 #000, 0 0 36px rgba(179,71,255,.7); animation: rarshake .5s ease-in-out; }
+  .chestbox.rar-legendary { border-color: #ffd84d; box-shadow: 8px 8px 0 #000, 0 0 50px rgba(255,216,77,.85); animation: rarshake .5s ease-in-out, evoglow 1s ease-in-out infinite alternate; }
+  .chestbox.rar-epic .modalheader, .chestbox.rar-legendary .modalheader { animation: rainbow 1.2s linear infinite, haulpulse .5s ease-in-out infinite alternate; }
+
+  /* full-screen flash on rare+ reveal */
+  .dropflash { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 8; }
+  .dropflash.on { opacity: .55; transition: opacity .08s; }
+  .dropflash.rar-rare.on { background: radial-gradient(circle, rgba(74,163,255,.7), transparent 70%); }
+  .dropflash.rar-epic.on { background: radial-gradient(circle, rgba(179,71,255,.8), transparent 70%); }
+  .dropflash.rar-legendary.on { background: radial-gradient(circle, rgba(255,216,77,.9), transparent 70%); }
+
+  /* confetti */
+  .confettibox { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 9; }
+  .confetti { position: absolute; top: -16px; width: 9px; height: 14px; border-radius: 2px; animation: confettifall 2.4s linear forwards; }
+  @keyframes confettifall { 0% { top: -16px; transform: rotate(0) translateX(0); opacity: 1; } 100% { top: 105vh; transform: rotate(560deg) translateX(24px); opacity: .85; } }
 
   /* ---------- bestiary screen ---------- */
   .bestiarybtn { margin-top: 12px; }
@@ -240,6 +259,8 @@
   .endbox .endsub { margin-top: 10px; color: #aab4c8; font-size: 14px; max-width: 480px; }
   .endstats { margin-top: 16px; font-size: 15px; line-height: 1.9; text-align: left; display: inline-block; }
   .endstats b { color: #ffd84d; }
+  .newbest { margin-top: 8px; font: 900 18px Impact, sans-serif; color: #ff3366; text-align: center;
+    text-shadow: 2px 2px 0 #000; animation: haulpulse .4s ease-in-out infinite alternate; }
 
   #errlog { position: fixed; left: 0; bottom: 0; font: 10px monospace; color: #333; z-index: 999; pointer-events: none; }
 

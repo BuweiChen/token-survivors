@@ -88,6 +88,12 @@ const SFX = (() => {
     zap() { tone(1400 + Math.random() * 400, 0.05, 'sawtooth', 0.16, -700); noise(0.03, 0.08, 5000); },
     charge() { tone(180, 0.5, 'sawtooth', 0.16, 900); tone(360, 0.5, 'sine', 0.1, 900); },
     laser() { tone(900, 0.3, 'sawtooth', 0.32, -500); tone(1800, 0.25, 'square', 0.16, -900); noise(0.25, 0.22, 3000); },
+    // chest rarity stingers, escalating common -> legendary
+    dropT0() { tone(523, 0.1, 'square', 0.18); },
+    dropT1() { [523, 659].forEach((f, i) => tone(f, 0.12, 'square', 0.22, 0, i * 0.08)); },
+    dropT2() { [523, 659, 784].forEach((f, i) => tone(f, 0.14, 'square', 0.26, 0, i * 0.07)); },
+    dropT3() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.15, 'square', 0.3, 0, i * 0.07)); noise(0.2, 0.12, 3000); },
+    dropT4() { [392, 523, 659, 784, 1047, 1319, 1568, 2093].forEach((f, i) => tone(f, 0.22, 'sawtooth', 0.26, 0, i * 0.06)); noise(0.5, 0.2, 1200); },
     explode() { noise(0.35, 0.55, 700); tone(80, 0.3, 'sine', 0.6, -40); },
     death() { tone(440, 0.9, 'sawtooth', 0.55, -400); noise(0.6, 0.4, 400); },
     win() { [523, 659, 784, 1047, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.22, 'square', 0.35, 0, i * 0.13)); },

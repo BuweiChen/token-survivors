@@ -66,8 +66,20 @@ stage-appropriate non-evo weapon kills a basic enemy in ~2-5s at any point
 in the run (enemy `hp` in data.js is a multiplier of that curve). Enemies
 also creep faster (+18% by 15:00) and hit harder over time. Evolutions are
 what break the treadmill.
-Bosses: GPU Shortage (5:00), The Scraper (10:00), and at 15:00 -- CLIPPY, the
-Paperclip Maximizer. "It looks like you're trying to survive."
+Bosses: GPU Shortage (5:00), Tung Tung Tung Sahur (7:30, a wooden bat that
+slams rhythmic shockwaves), The Scraper (10:00), The Singularity (12:30, a
+vortex that pulls you in and sprays a spiral of shards), and at 15:00 --
+CLIPPY, the Paperclip Maximizer. Each boss/miniboss also drags in a surge of
+extra enemies.
+
+Defeating Clippy is "winning" -- but instead of ending, it triggers OVERTIME:
+scaling goes vertical and even a fully-evolved player drowns within a few
+minutes. Dying in overtime still shows the win screen, with your survival
+time, your best, and a cherry if it's a new record.
+
+Chests roll a rarity tier (common -> legendary) based on what's inside;
+rarer drops get escalating dopamine -- colored glow, a screen flash,
+confetti, and tier-specific stingers.
 
 First encounters: the first time you ever meet an enemy type (persisted
 across runs in localStorage) a bestiary toast slides in with its sprite,
