@@ -1,6 +1,6 @@
 // audio.js -- procedural WebAudio. No files, just vibes.
 // SFX are one-shot synth blips. Music is a scheduled engine with two tracks:
-// 'run' = phonk (808s, claps, cowbell lead with delay/slides/accents),
+// 'run' = generic bumpy EDM (four-on-the-floor, offbeat bass, one stab/bar),
 // 'menu' = slow moody lo-fi (pads, sparse arp, vinyl crackle).
 'use strict';
 
@@ -10,7 +10,7 @@ const SFX = (() => {
   // volume changes. We drive a tanh soft-clipper instead: loud, safe, and
   // the saturation suits phonk anyway.
   const VOL = 1.1; // master drive into the clipper
-  let ctx = null, master = null, musicGain = null, melodyBus = null;
+  let ctx = null, master = null, musicGain = null, melodyBus = null, dlyRef = null;
   let muted = E.store.get('ts_mute') === '1';
   let userPaused = false; // game pause: suspend the clock, don't auto-resume
   let lastShot = 0;
@@ -38,8 +38,9 @@ const SFX = (() => {
       melodyBus = ctx.createGain();
       melodyBus.gain.value = 0.8;
       melodyBus.connect(musicGain);
-      const dly = ctx.createDelay(1);
-      dly.delayTime.value = (60 / 142 / 4) * 3; // dotted-8th-ish echo
+      dlyRef = ctx.createDelay(1);
+      const dly = dlyRef;
+      dly.delayTime.value = (60 / 126 / 4) * 3; // dotted-8th-ish echo
       const fb = ctx.createGain(); fb.gain.value = 0.25;
       const wet = ctx.createGain(); wet.gain.value = 0.18;
       melodyBus.connect(dly); dly.connect(fb); fb.connect(dly);
@@ -90,7 +91,7 @@ const SFX = (() => {
   };
 
   // ============================ MUSIC ENGINE ============================
-  const RUN_STEP = 60 / 142 / 4;   // phonk, 142 BPM 16ths
+  const RUN_STEP = 60 / 126 / 4;   // EDM, 126 BPM 16ths
   const MENU_STEP = 60 / 84 / 4;   // lo-fi, 84 BPM 16ths
   const LOOP = 64;                 // 4 bars
   let schedTimer = null, nextT = 0, step = 0, loopCount = 0;
@@ -106,15 +107,6 @@ const SFX = (() => {
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     }
     return _noiseBuf;
-  }
-
-  let _dist = null;
-  function distCurve() {
-    if (!_dist) {
-      _dist = new Float32Array(256);
-      for (let i = 0; i < 256; i++) _dist[i] = Math.tanh(((i / 128) - 1) * 3);
-    }
-    return _dist;
   }
 
   function nz(t, dur, vol, freq, type) {
@@ -147,19 +139,6 @@ const SFX = (() => {
   }
 
   const hat = (t, dur, vol) => nz(t, dur, vol, 7500, 'highpass');
-
-  function bass808(t, note, dur) {
-    const o = ctx.createOscillator(); o.type = 'square';
-    o.frequency.setValueAtTime(midi(note), t);
-    const sh = ctx.createWaveShaper(); sh.curve = distCurve();
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.45, t);
-    g.gain.setValueAtTime(0.45, t + dur * 0.6);
-    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.connect(sh); sh.connect(lp); lp.connect(g); g.connect(musicGain);
-    o.start(t); o.stop(t + dur + 0.02);
-  }
 
   // the lead voice: a warm synth pluck, not a pipe. triangle fundamental
   // + quiet sine an octave up, through a lowpass. NO fifth partial -- a
@@ -196,41 +175,55 @@ const SFX = (() => {
     lfo.start(t); lfo.stop(t + 0.65);
   }
 
-  // ---------------- RUN TRACK: phonk in C minor ----------------
-  const BASS_RIFFS = [
-    [36, -1, -1, -1, -1, -1, 39, -1, 31, -1, -1, -1, 34, -1, 38, -1],
-    [36, -1, -1, 36, -1, -1, 39, -1, 31, -1, 31, -1, 34, -1, 41, -1],
+  // ---------------- RUN TRACK: generic bumpy EDM in A minor ----------------
+  // four-on-the-floor kick, offbeat bass pulse (the bump), claps on 2 and 4,
+  // one chord stab per bar, and a tiny motif every other loop. that's it.
+  const PROG = [
+    { bass: 33, chord: [57, 60, 64] },  // Am
+    { bass: 29, chord: [53, 57, 60] },  // F
+    { bass: 36, chord: [48, 52, 55] },  // C
+    { bass: 31, chord: [55, 59, 62] },  // G
   ];
-  const MELODIES = [
-    [63, 0, 63, 67, 0, 0, 60, 0, 58, 0, 60, 0, 63, 0, 0, 0],   // the OG line, breathing
-    [0, 0, 70, 0, 67, 65, 0, 0, 63, 0, 65, 0, 67, 0, 0, 0],    // high answer
-    [60, 0, 0, 63, 0, 0, 58, 0, 55, 0, 0, 58, 60, 0, 0, 0],    // dark and patient
-    [0, 0, 63, 0, 67, 0, 70, 0, 72, 0, 70, 67, 65, 0, 63, 0],  // rising phrase
-  ];
-  let lastMelNote = 0;
+  // sparse pentatonic motif, bars 3-4 only: {bar: {step: note}}
+  const MOTIF = { 2: { 0: 69, 6: 72 }, 3: { 0: 76, 6: 72, 12: 69 } };
+
+  function bassPulse(t, note) {
+    const o = ctx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(midi(note), t);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 480;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.4, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    o.connect(lp); lp.connect(g); g.connect(musicGain);
+    o.start(t); o.stop(t + 0.24);
+  }
+
+  function stab(t, notes) {
+    for (const n of notes) {
+      const o = ctx.createOscillator(); o.type = 'triangle';
+      o.frequency.value = midi(n);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.12, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      o.connect(g); g.connect(melodyBus);
+      o.start(t); o.stop(t + 0.34);
+    }
+  }
 
   function scheduleRun(s, t) {
     const bar = (s / 16) | 0, st = s % 16;
-    if (st === 0 || st === 7 || st === 10) kick(t, st === 0 ? 1.0 : 0.8);
+    const pg = PROG[bar];
+    if (st % 4 === 0) kick(t, 1.0);
     if (st === 4 || st === 12) clap(t);
-    if (st % 2 === 0) hat(t, 0.035, 0.12);
-    if (st === 14) hat(t, 0.09, 0.1);
-    if (bar === 3 && st === 15) { hat(t, 0.03, 0.11); hat(t + stepDur / 2, 0.03, 0.11); }
-    const b = BASS_RIFFS[loopCount % 2][st];
-    if (b >= 0) bass808(t, b, stepDur * 2.4);
-    // lead melody on all bars; lines rotate + re-pair every loop
-    const half = bar < 2 ? 0 : 1;
-    const line = MELODIES[(loopCount * 2 + half) % MELODIES.length];
-    if (st % 2 === 0) {
-      const m = line[(bar % 2) * 8 + st / 2];
-      if (m > 0) {
-        const accent = st % 8 === 0 ? 0.55 : st % 4 === 0 ? 0.45 : 0.35;
-        const swing = st % 4 === 2 ? stepDur * 0.16 : 0;       // lazy off-8ths
-        const human = (Math.random() - 0.5) * 0.012;           // not a robot
-        const slide = lastMelNote && Math.abs(m - lastMelNote) <= 5 && Math.random() < 0.5 ? lastMelNote : 0;
-        lead(t + swing + human, m, accent, slide);
-        lastMelNote = m;
-      }
+    if (st % 4 === 2) {
+      hat(t, 0.07, 0.16);
+      bassPulse(t, pg.bass);
+    }
+    if (st === 8) stab(t, pg.chord);
+    if (loopCount % 2 === 0 && MOTIF[bar] && MOTIF[bar][st] !== undefined) {
+      lead(t, MOTIF[bar][st], 0.32);
     }
   }
 
@@ -288,8 +281,9 @@ const SFX = (() => {
     stopMusic();
     musicKind = kind;
     stepDur = kind === 'menu' ? MENU_STEP : RUN_STEP;
+    if (dlyRef) dlyRef.delayTime.value = stepDur * 3;
     nextT = ctx.currentTime + 0.06;
-    step = 0; loopCount = 0; lastMelNote = 0;
+    step = 0; loopCount = 0;
     schedTimer = setInterval(() => {
       if (!ctx) return;
       while (nextT < ctx.currentTime + 0.12) {
