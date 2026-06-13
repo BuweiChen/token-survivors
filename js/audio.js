@@ -9,7 +9,7 @@ const SFX = (() => {
   // applies automatic makeup gain inside it, which silently undoes master
   // volume changes. We drive a tanh soft-clipper instead: loud, safe, and
   // the saturation suits phonk anyway.
-  const VOL = 1.3; // master drive into the clipper
+  const VOL = 1.1; // master drive into the clipper
   let ctx = null, master = null, musicGain = null, melodyBus = null;
   let muted = E.store.get('ts_mute') === '1';
   let userPaused = false; // game pause: suspend the clock, don't auto-resume
@@ -24,7 +24,7 @@ const SFX = (() => {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       const clip = ctx.createWaveShaper();
       const curve = new Float32Array(1024);
-      for (let i = 0; i < 1024; i++) curve[i] = Math.tanh(((i / 511.5) - 1) * 2.2);
+      for (let i = 0; i < 1024; i++) curve[i] = Math.tanh(((i / 511.5) - 1) * 1.5);
       clip.curve = curve;
       clip.oversample = '2x';
       clip.connect(ctx.destination);
@@ -36,12 +36,12 @@ const SFX = (() => {
       musicGain.connect(master);
       // melody rides its own bus, hot, with a feedback delay for soul
       melodyBus = ctx.createGain();
-      melodyBus.gain.value = 1.5;
+      melodyBus.gain.value = 1.0;
       melodyBus.connect(musicGain);
       const dly = ctx.createDelay(1);
       dly.delayTime.value = (60 / 142 / 4) * 3; // dotted-8th-ish echo
-      const fb = ctx.createGain(); fb.gain.value = 0.35;
-      const wet = ctx.createGain(); wet.gain.value = 0.3;
+      const fb = ctx.createGain(); fb.gain.value = 0.28;
+      const wet = ctx.createGain(); wet.gain.value = 0.22;
       melodyBus.connect(dly); dly.connect(fb); fb.connect(dly);
       dly.connect(wet); wet.connect(musicGain);
     } catch (e) { /* no audio, no problem */ }
@@ -128,7 +128,7 @@ const SFX = (() => {
     src.start(t); src.stop(t + dur + 0.02);
   }
 
-  function kick(t, vol = 1.4) {
+  function kick(t, vol = 1.0) {
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'sine';
     o.frequency.setValueAtTime(165, t);
@@ -137,13 +137,13 @@ const SFX = (() => {
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
     o.connect(g); g.connect(musicGain);
     o.start(t); o.stop(t + 0.32);
-    if (vol > 1) nz(t, 0.03, 0.4, 3000, 'highpass'); // click
+    if (vol >= 1) nz(t, 0.03, 0.28, 3000, 'highpass'); // click
   }
 
   function clap(t) {
-    nz(t, 0.04, 0.6, 1700, 'bandpass');
-    nz(t + 0.02, 0.05, 0.55, 1500, 'bandpass');
-    nz(t + 0.045, 0.22, 0.55, 1800, 'bandpass');
+    nz(t, 0.04, 0.45, 1700, 'bandpass');
+    nz(t + 0.02, 0.05, 0.4, 1500, 'bandpass');
+    nz(t + 0.045, 0.22, 0.4, 1800, 'bandpass');
   }
 
   const hat = (t, dur, vol) => nz(t, dur, vol, 7500, 'highpass');
@@ -154,38 +154,46 @@ const SFX = (() => {
     const sh = ctx.createWaveShaper(); sh.curve = distCurve();
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.5, t);
-    g.gain.setValueAtTime(0.5, t + dur * 0.6);
+    g.gain.setValueAtTime(0.45, t);
+    g.gain.setValueAtTime(0.45, t + dur * 0.6);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     o.connect(sh); sh.connect(lp); lp.connect(g); g.connect(musicGain);
     o.start(t); o.stop(t + dur + 0.02);
   }
 
-  // the lead voice. cowbell-ish timbre but treated like a singer:
-  // portamento from the previous note, vibrato, velocity, delay echo.
+  // the lead voice: a warm synth pluck, not a pipe. triangle fundamental
+  // + quiet sine an octave up, through a lowpass. NO fifth partial -- a
+  // square at 1.5x f0 is how you get "metal pipe falling down stairs".
+  // portamento from the previous note, late-onset vibrato, velocity.
   function lead(t, note, vol = 1.0, slideFrom = 0) {
     const f0 = midi(note);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.34);
-    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f0 * 2.2; bp.Q.value = 1.1;
-    bp.connect(g); g.connect(melodyBus);
-    const lfo = ctx.createOscillator(); lfo.frequency.value = 5.5;
-    const lfoG = ctx.createGain(); lfoG.gain.value = f0 * 0.012;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.012); // soft attack, no click
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f0 * 4; lp.Q.value = 0.7;
+    lp.connect(g); g.connect(melodyBus);
+    // vibrato fades in after the attack, like a player would
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 5;
+    const lfoG = ctx.createGain();
+    lfoG.gain.setValueAtTime(0, t);
+    lfoG.gain.linearRampToValueAtTime(f0 * 0.006, t + 0.18);
     lfo.connect(lfoG);
-    for (const mul of [1, 1.5]) {
-      const o = ctx.createOscillator(); o.type = 'square';
+    const voices = [['triangle', 1, 1], ['sine', 2, 0.25]];
+    for (const [type, mul, vmix] of voices) {
+      const o = ctx.createOscillator(); o.type = type;
+      const og = ctx.createGain(); og.gain.value = vmix;
       if (slideFrom) {
         o.frequency.setValueAtTime(midi(slideFrom) * mul, t);
-        o.frequency.exponentialRampToValueAtTime(f0 * mul, t + 0.07);
+        o.frequency.exponentialRampToValueAtTime(f0 * mul, t + 0.05);
       } else {
         o.frequency.setValueAtTime(f0 * mul, t);
       }
       lfoG.connect(o.frequency);
-      o.connect(bp);
-      o.start(t); o.stop(t + 0.36);
+      o.connect(og); og.connect(lp);
+      o.start(t); o.stop(t + 0.45);
     }
-    lfo.start(t); lfo.stop(t + 0.36);
+    lfo.start(t); lfo.stop(t + 0.45);
   }
 
   // ---------------- RUN TRACK: phonk in C minor ----------------
@@ -205,9 +213,9 @@ const SFX = (() => {
     const bar = (s / 16) | 0, st = s % 16;
     if (st === 0 || st === 7 || st === 10) kick(t);
     if (st === 4 || st === 12) clap(t);
-    if (st % 2 === 0) hat(t, 0.035, 0.25);
-    if (st === 14) hat(t, 0.09, 0.18);
-    if (bar === 3 && st === 15) { hat(t, 0.03, 0.2); hat(t + stepDur / 2, 0.03, 0.2); }
+    if (st % 2 === 0) hat(t, 0.035, 0.18);
+    if (st === 14) hat(t, 0.09, 0.13);
+    if (bar === 3 && st === 15) { hat(t, 0.03, 0.15); hat(t + stepDur / 2, 0.03, 0.15); }
     const b = BASS_RIFFS[loopCount % 2][st];
     if (b >= 0) bass808(t, b, stepDur * 2.4);
     // lead melody on all bars; lines rotate + re-pair every loop
@@ -216,17 +224,17 @@ const SFX = (() => {
     if (st % 2 === 0) {
       const m = line[(bar % 2) * 8 + st / 2];
       if (m > 0) {
-        const accent = st % 8 === 0 ? 1.3 : st % 4 === 0 ? 1.05 : 0.85;
+        const accent = st % 8 === 0 ? 1.0 : st % 4 === 0 ? 0.8 : 0.6;
         const swing = st % 4 === 2 ? stepDur * 0.16 : 0;       // lazy off-8ths
         const human = (Math.random() - 0.5) * 0.012;           // not a robot
         const slide = lastMelNote && Math.abs(m - lastMelNote) <= 5 && Math.random() < 0.5 ? lastMelNote : 0;
         lead(t + swing + human, m, accent, slide);
         lastMelNote = m;
-        if (st % 8 === 0) lead(t + stepDur * 0.75, m + 12, 0.45);
+        if (st % 8 === 0) lead(t + stepDur * 0.75, m + 12, 0.28);
       }
-    } else if (Math.random() < 0.12) {
+    } else if (Math.random() < 0.08) {
       const m = line[(bar % 2) * 8 + ((st - 1) / 2)];
-      if (m > 0) lead(t, m - 12, 0.35);
+      if (m > 0) lead(t, m - 12, 0.18);
     }
   }
 
@@ -268,7 +276,7 @@ const SFX = (() => {
       const o = ctx.createOscillator(); o.type = 'sine';
       o.frequency.value = midi(n);
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.5, t);
+      g.gain.setValueAtTime(0.4, t);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
       o.connect(g); g.connect(melodyBus);
       o.start(t); o.stop(t + 0.55);
