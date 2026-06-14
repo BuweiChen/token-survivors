@@ -458,7 +458,7 @@ const WeaponSys = (() => {
       for (let i = 0; i < salvo; i++) {
         w.barrage.push({
           x: e.x + E.rand(-150, 150), y: e.y + E.rand(-130, 130),
-          delay: i * 0.07, rr, dmg: dmg(G, w.s.dmg * 1.3, w),
+          delay: i * 0.07, rr, dmg: dmg(G, w.s.dmg * 2.4, w),
         });
       }
       return;

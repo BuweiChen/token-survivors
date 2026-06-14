@@ -354,9 +354,11 @@ const Game = (() => {
   function overT() { return G.overtime ? (G.time - G.overtimeStart) : 0; }
   function basicHpAt() {
     const m = G.time / 60;
-    // linear + quadratic ramp; x0.77 = another ~10% lower TTK across the run.
-    // overtime ~doubles every 40s.
-    return (20 + 24 * m + 1.0 * m * m) * 0.77 * (G.overtime ? Math.pow(2, overT() / 40) : 1);
+    // first 5 min: original curve (felt solid). after 5 min: a gentler linear
+    // ramp instead of the old quadratic, so late game is ~8% easier by 10:00,
+    // ~17% by 15:00, ~26% in overtime. x0.77 keeps overall TTK level.
+    const raw = m <= 5 ? (20 + 24 * m + m * m) : (165 + 33.5 * (m - 5));
+    return raw * 0.77 * (G.overtime ? Math.pow(2, overT() / 40) : 1);
   }
   // damage scales much more gently now: ~+75% by 15:00 (was +195%), so the
   // final boss is a ~3-hit threat for a no-armor player rather than a one-shot
